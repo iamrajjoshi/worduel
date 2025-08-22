@@ -108,7 +108,7 @@ The plan ensures that foundational components are solid before building dependen
   - Include proper logging for security events
   - _Requirements: 2.4, 2.5_
 
-- [ ] 14. Write WebSocket integration tests
+- [x] 14. Write WebSocket integration tests
   - File: `backend/tests/integration/websocket_test.go`
   - Test complete WebSocket communication flow
   - Include multi-client scenarios with message broadcasting
@@ -116,7 +116,7 @@ The plan ensures that foundational components are solid before building dependen
   - Add performance tests for message throughput and latency
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 15. Create REST API handlers for room operations
+- [x] 15. Create REST API handlers for room operations
   - File: `backend/internal/api/rooms.go`
   - Implement POST /api/rooms endpoint for room creation
   - Add GET /api/rooms/{id} endpoint for room status queries
@@ -124,7 +124,7 @@ The plan ensures that foundational components are solid before building dependen
   - Add validation for room IDs and error responses
   - _Requirements: 6.1, 6.2, 6.4_
 
-- [ ] 16. Add health check and system monitoring endpoints
+- [x] 16. Add health check and system monitoring endpoints
   - File: `backend/internal/api/health.go`
   - Implement GET /health endpoint with system status
   - Add metrics collection (active rooms, connections, memory usage)
