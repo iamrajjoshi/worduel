@@ -60,7 +60,7 @@ The plan ensures that foundational components are solid before building dependen
   - Include room capacity and validation logic
   - _Requirements: 3.1, 3.2, 3.3_
 
-- [ ] 8. Add room cleanup and expiration handling
+- [x] 8. Add room cleanup and expiration handling
   - File: `backend/internal/room/cleanup.go`
   - Implement automatic room cleanup for expired/empty rooms
   - Add background goroutine for periodic cleanup
