@@ -10,13 +10,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gorilla/mux"
 	"worduel-backend/internal/api"
 	"worduel-backend/internal/config"
 	"worduel-backend/internal/game"
 	"worduel-backend/internal/logging"
 	"worduel-backend/internal/room"
 	"worduel-backend/internal/ws"
+
+	"github.com/gorilla/mux"
 )
 
 type Application struct {
@@ -38,7 +39,7 @@ func main() {
 	}
 
 	if err := app.Run(); err != nil {
-		app.logger.LogError(context.Background(), err, "Application failed")
+		app.logger.Error("Application failed", "error", err.Error())
 		os.Exit(1)
 	}
 }
@@ -54,22 +55,21 @@ func (app *Application) Initialize() error {
 		return fmt.Errorf("logging initialization failed: %w", err)
 	}
 
-	ctx := context.Background()
-	app.logger.LogInfo(ctx, "Initializing application...")
+	app.logger.Info("Initializing application...")
 
 	// Initialize core components
 	if err := app.initializeComponents(); err != nil {
-		app.logger.LogError(ctx, err, "Component initialization failed")
+		app.logger.Error("Component initialization failed", "error", err.Error())
 		return fmt.Errorf("component initialization failed: %w", err)
 	}
 
 	// Set up HTTP server and routes
 	if err := app.setupServer(); err != nil {
-		app.logger.LogError(ctx, err, "Server setup failed")
+		app.logger.Error("Server setup failed", "error", err.Error())
 		return fmt.Errorf("server setup failed: %w", err)
 	}
 
-	app.logger.LogInfo(ctx, "Application initialized successfully")
+	app.logger.Info("Application initialized successfully")
 	return nil
 }
 
@@ -95,27 +95,29 @@ func (app *Application) initializeLogging() error {
 	fmt.Println("Initializing logging...")
 
 	// Initialize Sentry if DSN is provided
-	if app.config.Sentry.DSN != "" {
-		sentryConfig := logging.SentryConfig{
-			DSN:              app.config.Sentry.DSN,
-			Environment:      app.config.Sentry.Environment,
-			Release:          app.config.Sentry.Release,
-			TracesSampleRate: app.config.Sentry.TracesSampleRate,
-			Debug:            app.config.Sentry.Debug,
-		}
-		
-		if err := logging.InitSentry(sentryConfig); err != nil {
-			return fmt.Errorf("failed to initialize Sentry: %w", err)
-		}
-		fmt.Println("Sentry initialized")
+	dsn := app.config.Sentry.DSN
+	if dsn == "" {
+		dsn = "https://8c7abeba76bbc23136f9f0284e7e8e02@o4509294838415360.ingest.us.sentry.io/4509888598769664"
 	}
+
+	sentryConfig := logging.SentryConfig{
+		DSN:              dsn,
+		Environment:      app.config.Sentry.Environment,
+		Release:          app.config.Sentry.Release,
+		TracesSampleRate: app.config.Sentry.TracesSampleRate,
+		Debug:            app.config.Sentry.Debug,
+	}
+
+	if err := logging.InitSentry(sentryConfig); err != nil {
+		return fmt.Errorf("failed to initialize Sentry: %w", err)
+	}
+	fmt.Println("Sentry initialized")
 
 	// Initialize structured logger
 	loggerConfig := logging.LogConfig{
 		Level:       app.config.Logging.Level,
 		Environment: app.config.Logging.Environment,
 		Service:     app.config.Logging.Service,
-		SentryDSN:   app.config.Sentry.DSN,
 		AddSource:   app.config.Logging.AddSource,
 	}
 
@@ -125,40 +127,39 @@ func (app *Application) initializeLogging() error {
 	}
 
 	app.logger = logger
+	logging.SetGlobalLogger(logger)
 	fmt.Println("Structured logging initialized")
 
 	return nil
 }
 
 func (app *Application) initializeComponents() error {
-	ctx := context.Background()
-	app.logger.LogInfo(ctx, "Initializing core components...")
+	app.logger.Info("Initializing core components...")
 
 	// Initialize dictionary service
 	app.dictionary = game.NewDictionary()
-	app.logger.LogInfo(ctx, "Dictionary loaded",
+	app.logger.Info("Dictionary loaded",
 		"common_words", app.dictionary.GetCommonWordsCount(),
 		"valid_words", app.dictionary.GetValidWordsCount())
 
 	// Initialize room manager with configuration
 	app.roomManager = room.NewRoomManager()
 	app.roomManager.SetMaxConcurrentRooms(app.config.Room.MaxConcurrentRooms)
-	app.logger.LogInfo(ctx, "Room manager initialized", "max_rooms", app.config.Room.MaxConcurrentRooms)
+	app.logger.Info("Room manager initialized", "max_rooms", app.config.Room.MaxConcurrentRooms)
 
 	// Initialize game logic
-	app.gameLogic = game.NewGameLogic(app.dictionary, app.logger)
-	app.logger.LogInfo(ctx, "Game logic initialized")
+	app.gameLogic = game.NewGameLogic(app.dictionary)
+	app.logger.Info("Game logic initialized")
 
 	// Initialize WebSocket hub
-	app.hub = ws.NewHub(app.roomManager, app.gameLogic, app.logger)
-	app.logger.LogInfo(ctx, "WebSocket hub initialized")
+	app.hub = ws.NewHub(app.roomManager, app.gameLogic)
+	app.logger.Info("WebSocket hub initialized")
 
 	return nil
 }
 
 func (app *Application) setupServer() error {
-	ctx := context.Background()
-	app.logger.LogInfo(ctx, "Setting up HTTP server and routes...")
+	app.logger.Info("Setting up HTTP server and routes...")
 
 	router := mux.NewRouter()
 
@@ -168,7 +169,7 @@ func (app *Application) setupServer() error {
 	// Add Sentry HTTP middleware if configured
 	if app.config.Sentry.DSN != "" {
 		router.Use(logging.SentryHTTPMiddleware())
-		app.logger.LogInfo(ctx, "Sentry HTTP middleware configured")
+		app.logger.Info("Sentry HTTP middleware configured")
 	}
 
 	// Initialize API handlers
@@ -179,7 +180,7 @@ func (app *Application) setupServer() error {
 	healthHandler.RegisterRoutes(router)
 
 	// Setup WebSocket endpoint
-	wsHandler := ws.NewHandler(app.hub, app.roomManager, app.dictionary, app.logger)
+	wsHandler := ws.NewHandler(app.hub, app.roomManager, app.dictionary)
 	router.HandleFunc("/ws", wsHandler.HandleWebSocket)
 
 	// Apply middleware to all routes
@@ -194,7 +195,7 @@ func (app *Application) setupServer() error {
 		IdleTimeout:  app.config.Server.IdleTimeout,
 	}
 
-	app.logger.LogInfo(ctx, "HTTP server configured", "address", app.server.Addr)
+	app.logger.Info("HTTP server configured", "address", app.server.Addr)
 	return nil
 }
 
@@ -205,8 +206,7 @@ func (app *Application) Run() error {
 	// Start HTTP server in goroutine
 	serverErrChan := make(chan error, 1)
 	go func() {
-		ctx := context.Background()
-		app.logger.LogInfo(ctx, "Server starting", "address", app.server.Addr)
+		app.logger.Info("Server starting", "address", app.server.Addr)
 		if err := app.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			serverErrChan <- fmt.Errorf("server failed to start: %w", err)
 		}
@@ -217,16 +217,15 @@ func (app *Application) Run() error {
 }
 
 func (app *Application) startBackgroundServices() {
-	ctx := context.Background()
-	app.logger.LogInfo(ctx, "Starting background services...")
+	app.logger.Info("Starting background services...")
 
 	// Start WebSocket hub
 	go app.hub.Run()
-	app.logger.LogInfo(ctx, "WebSocket hub started")
+	app.logger.Info("WebSocket hub started")
 
 	// Start room cleanup service
 	go app.startRoomCleanup()
-	app.logger.LogInfo(ctx, "Room cleanup service started")
+	app.logger.Info("Room cleanup service started")
 }
 
 func (app *Application) startRoomCleanup() {
@@ -234,10 +233,9 @@ func (app *Application) startRoomCleanup() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		ctx := context.Background()
 		cleanedCount := app.roomManager.CleanupExpiredRooms(app.config.Room.RoomInactiveTimeout)
 		if cleanedCount > 0 {
-			app.logger.LogInfo(ctx, "Cleaned up expired rooms", "count", cleanedCount)
+			app.logger.Info("Cleaned up expired rooms", "count", cleanedCount)
 		}
 	}
 }
@@ -249,17 +247,16 @@ func (app *Application) waitForShutdownSignal(serverErrChan chan error) error {
 
 	select {
 	case err := <-serverErrChan:
-		app.logger.LogError(context.Background(), err, "Server error")
+		app.logger.Error("Server error", "error", err.Error())
 		return err
 	case sig := <-quit:
-		app.logger.LogInfo(context.Background(), "Received shutdown signal", "signal", sig)
+		app.logger.Info("Received shutdown signal", "signal", sig)
 		return app.gracefulShutdown()
 	}
 }
 
 func (app *Application) gracefulShutdown() error {
-	ctx := context.Background()
-	app.logger.LogInfo(ctx, "Starting graceful shutdown...")
+	app.logger.Info("Starting graceful shutdown...")
 
 	// Create shutdown context with timeout
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), app.config.Server.ShutdownTimeout)
@@ -272,30 +269,30 @@ func (app *Application) gracefulShutdown() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		app.logger.LogInfo(ctx, "Shutting down HTTP server...")
+		app.logger.Info("Shutting down HTTP server...")
 		if err := app.server.Shutdown(shutdownCtx); err != nil {
 			errChan <- fmt.Errorf("server shutdown failed: %w", err)
 			return
 		}
-		app.logger.LogInfo(ctx, "HTTP server stopped")
+		app.logger.Info("HTTP server stopped")
 	}()
 
 	// Shutdown WebSocket hub
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		app.logger.LogInfo(ctx, "Shutting down WebSocket hub...")
+		app.logger.Info("Shutting down WebSocket hub...")
 		app.hub.Shutdown()
-		app.logger.LogInfo(ctx, "WebSocket hub stopped")
+		app.logger.Info("WebSocket hub stopped")
 	}()
 
 	// Cleanup room manager
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		app.logger.LogInfo(ctx, "Cleaning up room manager...")
+		app.logger.Info("Cleaning up room manager...")
 		app.roomManager.Shutdown()
-		app.logger.LogInfo(ctx, "Room manager stopped")
+		app.logger.Info("Room manager stopped")
 	}()
 
 	// Wait for all shutdown operations or timeout
@@ -307,16 +304,16 @@ func (app *Application) gracefulShutdown() error {
 
 	select {
 	case <-done:
-		app.logger.LogInfo(ctx, "Graceful shutdown completed successfully")
+		app.logger.Info("Graceful shutdown completed successfully")
 		// Flush Sentry before exit
 		logging.FlushSentry(2 * time.Second)
 		return nil
 	case err := <-errChan:
-		app.logger.LogError(ctx, err, "Shutdown error")
+		app.logger.Error("Shutdown error", "error", err.Error())
 		logging.FlushSentry(2 * time.Second)
 		return err
 	case <-shutdownCtx.Done():
-		app.logger.LogWarn(ctx, "Shutdown timeout exceeded, forcing exit")
+		app.logger.Warn("Shutdown timeout exceeded, forcing exit")
 		logging.FlushSentry(2 * time.Second)
 		return fmt.Errorf("shutdown timeout exceeded")
 	}

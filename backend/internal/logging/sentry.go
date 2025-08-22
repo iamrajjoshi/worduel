@@ -25,6 +25,7 @@ func InitSentry(config SentryConfig) error {
 		Release:          config.Release,
 		TracesSampleRate: config.TracesSampleRate,
 		Debug:            config.Debug,
+		EnableLogs:       true, // Enable Sentry logs
 		BeforeSend: func(event *sentry.Event, hint *sentry.EventHint) *sentry.Event {
 			event.ServerName = "worduel-backend"
 			return event
@@ -52,31 +53,27 @@ func SentryHTTPMiddleware() func(http.Handler) http.Handler {
 func CaptureError(ctx context.Context, err error, tags map[string]string, extra map[string]interface{}) {
 	if hub := sentry.GetHubFromContext(ctx); hub != nil {
 		hub.WithScope(func(scope *sentry.Scope) {
-			if tags != nil {
-				for k, v := range tags {
-					scope.SetTag(k, v)
-				}
+			for k, v := range tags {
+				scope.SetTag(k, v)
 			}
-			if extra != nil {
-				for k, v := range extra {
-					scope.SetExtra(k, v)
-				}
+
+			for k, v := range extra {
+				scope.SetExtra(k, v)
 			}
+
 			scope.SetLevel(sentry.LevelError)
 			hub.CaptureException(err)
 		})
 	} else {
 		sentry.WithScope(func(scope *sentry.Scope) {
-			if tags != nil {
-				for k, v := range tags {
-					scope.SetTag(k, v)
-				}
+			for k, v := range tags {
+				scope.SetTag(k, v)
 			}
-			if extra != nil {
-				for k, v := range extra {
-					scope.SetExtra(k, v)
-				}
+
+			for k, v := range extra {
+				scope.SetExtra(k, v)
 			}
+
 			scope.SetLevel(sentry.LevelError)
 			sentry.CaptureException(err)
 		})
@@ -86,30 +83,25 @@ func CaptureError(ctx context.Context, err error, tags map[string]string, extra 
 func CaptureMessage(ctx context.Context, message string, level sentry.Level, tags map[string]string, extra map[string]interface{}) {
 	if hub := sentry.GetHubFromContext(ctx); hub != nil {
 		hub.WithScope(func(scope *sentry.Scope) {
-			if tags != nil {
-				for k, v := range tags {
-					scope.SetTag(k, v)
-				}
+			for k, v := range tags {
+				scope.SetTag(k, v)
 			}
-			if extra != nil {
-				for k, v := range extra {
-					scope.SetExtra(k, v)
-				}
+
+			for k, v := range extra {
+				scope.SetExtra(k, v)
 			}
+
 			scope.SetLevel(level)
 			hub.CaptureMessage(message)
 		})
 	} else {
 		sentry.WithScope(func(scope *sentry.Scope) {
-			if tags != nil {
-				for k, v := range tags {
-					scope.SetTag(k, v)
-				}
+			for k, v := range tags {
+				scope.SetTag(k, v)
 			}
-			if extra != nil {
-				for k, v := range extra {
-					scope.SetExtra(k, v)
-				}
+
+			for k, v := range extra {
+				scope.SetExtra(k, v)
 			}
 			scope.SetLevel(level)
 			sentry.CaptureMessage(message)
@@ -210,10 +202,10 @@ func RecordPerformanceMetrics(ctx context.Context, metrics PerformanceMetrics) {
 		"component": "performance_metrics",
 	}
 	extra := map[string]interface{}{
-		"active_connections":   metrics.ActiveConnections,
-		"active_rooms":         metrics.ActiveRooms,
-		"message_throughput":   metrics.MessageThroughput,
-		"memory_usage_mb":      metrics.MemoryUsageMB,
+		"active_connections": metrics.ActiveConnections,
+		"active_rooms":       metrics.ActiveRooms,
+		"message_throughput": metrics.MessageThroughput,
+		"memory_usage_mb":    metrics.MemoryUsageMB,
 	}
 
 	CaptureMessage(ctx, "Performance metrics snapshot", sentry.LevelInfo, tags, extra)

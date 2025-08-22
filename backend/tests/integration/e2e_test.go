@@ -37,8 +37,8 @@ func NewE2ETestSuite(t *testing.T) *E2ETestSuite {
 	// Initialize core components
 	dictionary := game.NewDictionary()
 	roomManager := room.NewRoomManager()
-	gameLogic := game.NewGameLogic(dictionary, nil)
-	hub := ws.NewHub(roomManager, gameLogic, nil)
+	gameLogic := game.NewGameLogic(dictionary)
+	hub := ws.NewHub(roomManager, gameLogic)
 
 	// Start WebSocket hub
 	stopCh := make(chan struct{})

@@ -2,7 +2,6 @@ package ws
 
 import (
 	"encoding/json"
-	"log"
 	"sync"
 	"time"
 
@@ -10,6 +9,8 @@ import (
 	"worduel-backend/internal/logging"
 	"worduel-backend/internal/room"
 )
+
+var hubLogger = logging.CreateLogger("ws.hub")
 
 // Hub maintains the set of active clients and broadcasts messages to the clients
 type Hub struct {
@@ -59,7 +60,7 @@ type HubStats struct {
 }
 
 // NewHub creates a new WebSocket hub
-func NewHub(roomManager *room.RoomManager, gameLogic *game.GameLogic, logger *logging.Logger) *Hub {
+func NewHub(roomManager *room.RoomManager, gameLogic *game.GameLogic) *Hub {
 	hub := &Hub{
 		clients:     make(map[string]*Client),
 		roomClients: make(map[string]map[string]*Client),
@@ -74,7 +75,7 @@ func NewHub(roomManager *room.RoomManager, gameLogic *game.GameLogic, logger *lo
 	}
 
 	// Initialize message handler with hub reference
-	hub.messageHandler = NewMessageHandler(hub, roomManager, gameLogic, logger)
+	hub.messageHandler = NewMessageHandler(hub, roomManager, gameLogic)
 
 	return hub
 }
@@ -112,7 +113,9 @@ func (h *Hub) handleClientRegister(client *Client) {
 	defer h.mutex.Unlock()
 
 	h.clients[client.GetID()] = client
-	log.Printf("Client %s connected. Total clients: %d", client.GetID(), len(h.clients))
+	hubLogger.Info("Client connected", 
+		"client_id", client.GetID(), 
+		"total_clients", len(h.clients))
 
 	// Send connection acknowledgment
 	response := &game.Message{
@@ -138,7 +141,9 @@ func (h *Hub) handleClientUnregister(client *Client) {
 	// Remove from clients map
 	if _, exists := h.clients[clientID]; exists {
 		delete(h.clients, clientID)
-		log.Printf("Client %s disconnected. Total clients: %d", clientID, len(h.clients))
+		hubLogger.Info("Client disconnected", 
+			"client_id", clientID, 
+			"total_clients", len(h.clients))
 	}
 
 	// Remove from room if associated
@@ -217,14 +222,16 @@ func (h *Hub) broadcastToRoom(roomID string, message *game.Message, excludeClien
 
 	messageData, err := json.Marshal(message)
 	if err != nil {
-		log.Printf("Error marshaling message: %v", err)
+		hubLogger.Error("Error marshaling message", "error", err)
 		return
 	}
 
 	for clientID, client := range roomClients {
 		if clientID != excludeClientID && !client.IsClosed() {
 			if err := client.SendMessage(messageData); err != nil {
-				log.Printf("Error sending message to client %s: %v", clientID, err)
+				hubLogger.Error("Error sending message to client", 
+					"client_id", clientID, 
+					"error", err)
 				// Client will be cleaned up by the unregister process
 			}
 		}
@@ -294,7 +301,7 @@ func (h *Hub) CleanupExpiredConnections() {
 
 	// Remove expired clients
 	for _, client := range clientsToRemove {
-		log.Printf("Removing expired client: %s", client.GetID())
+		hubLogger.Info("Removing expired client", "client_id", client.GetID())
 		h.unregister <- client
 	}
 }
@@ -322,5 +329,5 @@ func (h *Hub) Shutdown() {
 		client.Close()
 	}
 
-	log.Printf("Hub shutdown complete. Closed %d connections", len(clients))
+	hubLogger.Info("Hub shutdown complete", "closed_connections", len(clients))
 }

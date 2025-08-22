@@ -11,7 +11,7 @@ import (
 
 func TestGameLogic_ProcessGuess_WordValidation(t *testing.T) {
 	dict := game.NewDictionary()
-	logic := game.NewGameLogic(dict, nil)
+	logic := game.NewGameLogic(dict)
 
 	tests := []struct {
 		name          string
@@ -132,7 +132,7 @@ func TestGameLogic_ProcessGuess_WordValidation(t *testing.T) {
 
 func TestGameLogic_ScoringAlgorithm(t *testing.T) {
 	dict := game.NewDictionary()
-	logic := game.NewGameLogic(dict, nil)
+	logic := game.NewGameLogic(dict)
 
 	tests := []struct {
 		name           string
@@ -201,7 +201,7 @@ func TestGameLogic_ScoringAlgorithm(t *testing.T) {
 
 func TestGameLogic_StateTransitions(t *testing.T) {
 	dict := game.NewDictionary()
-	logic := game.NewGameLogic(dict, nil)
+	logic := game.NewGameLogic(dict)
 
 	t.Run("winning transitions", func(t *testing.T) {
 		room := createTestRoomWithTwoPlayers("about", "player1", "player2")
@@ -292,7 +292,7 @@ func TestGameLogic_StateTransitions(t *testing.T) {
 
 func TestGameLogic_DuplicateLetters(t *testing.T) {
 	dict := game.NewDictionary()
-	logic := game.NewGameLogic(dict, nil)
+	logic := game.NewGameLogic(dict)
 
 	tests := []struct {
 		name     string
@@ -382,7 +382,7 @@ func TestGameLogic_DuplicateLetters(t *testing.T) {
 
 func TestGameLogic_InvalidGameStates(t *testing.T) {
 	dict := game.NewDictionary()
-	logic := game.NewGameLogic(dict, nil)
+	logic := game.NewGameLogic(dict)
 
 	t.Run("game not active", func(t *testing.T) {
 		room := createTestRoom("about", "player1")
@@ -446,7 +446,7 @@ func TestGameLogic_InvalidGameStates(t *testing.T) {
 
 func TestGameLogic_ConcurrentAccess(t *testing.T) {
 	dict := game.NewDictionary()
-	logic := game.NewGameLogic(dict, nil)
+	logic := game.NewGameLogic(dict)
 
 	t.Run("concurrent guesses from different players", func(t *testing.T) {
 		room := createTestRoom("about", "")
@@ -530,7 +530,7 @@ func TestGameLogic_ConcurrentAccess(t *testing.T) {
 
 func TestGameLogic_ThreadSafety(t *testing.T) {
 	dict := game.NewDictionary()
-	logic := game.NewGameLogic(dict, nil)
+	logic := game.NewGameLogic(dict)
 
 	t.Run("concurrent room operations", func(t *testing.T) {
 		room := createTestRoom("about", "")
@@ -626,7 +626,7 @@ func TestGameLogic_ThreadSafety(t *testing.T) {
 // Benchmark tests for performance-critical methods
 func BenchmarkGameLogic_ProcessGuess(b *testing.B) {
 	dict := game.NewDictionary()
-	logic := game.NewGameLogic(dict, nil)
+	logic := game.NewGameLogic(dict)
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -637,7 +637,7 @@ func BenchmarkGameLogic_ProcessGuess(b *testing.B) {
 
 func BenchmarkGameLogic_ComputeLetterResults(b *testing.B) {
 	dict := game.NewDictionary()
-	logic := game.NewGameLogic(dict, nil)
+	logic := game.NewGameLogic(dict)
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -651,7 +651,7 @@ func BenchmarkGameLogic_ComputeLetterResults(b *testing.B) {
 
 func BenchmarkGameLogic_IsComplete(b *testing.B) {
 	dict := game.NewDictionary()
-	logic := game.NewGameLogic(dict, nil)
+	logic := game.NewGameLogic(dict)
 	room := createTestRoom("about", "player1")
 	
 	b.ResetTimer()
@@ -662,7 +662,7 @@ func BenchmarkGameLogic_IsComplete(b *testing.B) {
 
 func BenchmarkGameLogic_ValidateGameState(b *testing.B) {
 	dict := game.NewDictionary()
-	logic := game.NewGameLogic(dict, nil)
+	logic := game.NewGameLogic(dict)
 	room := createTestRoom("about", "player1")
 	
 	// Add some guesses to make validation more realistic
@@ -687,7 +687,7 @@ func BenchmarkGameLogic_ValidateGameState(b *testing.B) {
 
 func BenchmarkGameLogic_ConcurrentAccess(b *testing.B) {
 	dict := game.NewDictionary()
-	logic := game.NewGameLogic(dict, nil)
+	logic := game.NewGameLogic(dict)
 	
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {

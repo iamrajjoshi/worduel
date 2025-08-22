@@ -44,10 +44,10 @@ func setupTestServer(t *testing.T) *TestServer {
 	// Create dictionary, room manager and game logic
 	dictionary := game.NewDictionary()
 	roomManager := room.NewRoomManager()
-	gameLogic := game.NewGameLogic(dictionary, nil)
+	gameLogic := game.NewGameLogic(dictionary)
 	
 	// Create hub
-	hub := ws.NewHub(roomManager, gameLogic, nil)
+	hub := ws.NewHub(roomManager, gameLogic)
 	stopCh := make(chan struct{})
 	go func() {
 		hub.Run()

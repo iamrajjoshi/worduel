@@ -3,203 +3,185 @@ package logging
 import (
 	"context"
 	"fmt"
-	"log/slog"
-	"os"
-	"time"
+	"sync"
 
-	sentryhandler "github.com/getsentry/sentry-go/slog"
+	"github.com/getsentry/sentry-go"
+	"github.com/getsentry/sentry-go/attribute"
 )
 
 type Logger struct {
-	*slog.Logger
+	logger    sentry.Logger
+	component string
+	fields    map[string]interface{}
 }
+
+var (
+	globalLogger *Logger
+	globalMutex  sync.RWMutex
+)
 
 type LogConfig struct {
 	Level       string
 	Environment string
 	Service     string
-	SentryDSN   string
 	AddSource   bool
 }
 
 func NewLogger(config LogConfig) (*Logger, error) {
-	var level slog.Level
-	switch config.Level {
-	case "debug":
-		level = slog.LevelDebug
-	case "info":
-		level = slog.LevelInfo
-	case "warn":
-		level = slog.LevelWarn
-	case "error":
-		level = slog.LevelError
-	default:
-		level = slog.LevelInfo
-	}
+	// Create a Sentry logger with context
+	ctx := context.Background()
+	sentryLogger := sentry.NewLogger(ctx)
 
-	opts := &slog.HandlerOptions{
-		Level:     level,
-		AddSource: config.AddSource,
-	}
+	// Set permanent attributes for service and environment
+	sentryLogger.SetAttributes(
+		attribute.String("service", config.Service),
+		attribute.String("environment", config.Environment),
+	)
 
-	var handler slog.Handler
+	return &Logger{
+		logger: sentryLogger,
+		fields: map[string]interface{}{
+			"service":     config.Service,
+			"environment": config.Environment,
+		},
+	}, nil
+}
 
-	if config.Environment == "production" {
-		handler = slog.NewJSONHandler(os.Stdout, opts)
-	} else {
-		handler = slog.NewTextHandler(os.Stdout, opts)
-	}
+// SetGlobalLogger sets the global logger instance
+func SetGlobalLogger(logger *Logger) {
+	globalMutex.Lock()
+	defer globalMutex.Unlock()
+	globalLogger = logger
+}
 
-	if config.SentryDSN != "" {
-		sentryOpts := sentryhandler.Option{
-			Level: level,
+// CreateLogger creates a component-scoped logger with additional context fields
+func CreateLogger(component string, additionalFields ...interface{}) *Logger {
+	globalMutex.RLock()
+	defer globalMutex.RUnlock()
+
+	if globalLogger == nil {
+		// Fallback: create a basic logger if global logger isn't set
+		ctx := context.Background()
+		fallbackSentryLogger := sentry.NewLogger(ctx)
+		fallbackSentryLogger.SetAttributes(attribute.String("component", component))
+
+		return &Logger{
+			logger:    fallbackSentryLogger,
+			component: component,
+			fields:    map[string]interface{}{"component": component},
 		}
-		handler = sentryOpts.NewSentryHandler(context.Background())
 	}
 
-	logger := slog.New(handler)
-	logger = logger.With(
-		"service", config.Service,
-		"environment", config.Environment,
-	)
+	// Create component logger with additional fields
+	ctx := context.Background()
+	componentLogger := sentry.NewLogger(ctx)
 
-	return &Logger{Logger: logger}, nil
-}
+	// Copy global attributes and add component and additional fields
+	attributes := make([]attribute.Builder, 0)
+	attributes = append(attributes, attribute.String("component", component))
 
-func (l *Logger) WithContext(ctx context.Context) *slog.Logger {
-	return l.Logger.With("correlation_id", getCorrelationID(ctx))
-}
-
-func (l *Logger) WithFields(fields map[string]interface{}) *slog.Logger {
-	args := make([]interface{}, 0, len(fields)*2)
-	for k, v := range fields {
-		args = append(args, k, v)
+	// Add service and environment from global logger
+	if globalLogger.fields != nil {
+		if service, ok := globalLogger.fields["service"].(string); ok {
+			attributes = append(attributes, attribute.String("service", service))
+		}
+		if env, ok := globalLogger.fields["environment"].(string); ok {
+			attributes = append(attributes, attribute.String("environment", env))
+		}
 	}
-	return l.Logger.With(args...)
+
+	// Process additional fields
+	fields := map[string]interface{}{"component": component}
+	for i := 0; i < len(additionalFields); i += 2 {
+		if i+1 < len(additionalFields) {
+			key := fmt.Sprintf("%v", additionalFields[i])
+			value := additionalFields[i+1]
+			fields[key] = value
+
+			// Add to Sentry attributes based on type
+			switch v := value.(type) {
+			case string:
+				attributes = append(attributes, attribute.String(key, v))
+			case int:
+				attributes = append(attributes, attribute.Int(key, v))
+			case bool:
+				attributes = append(attributes, attribute.Bool(key, v))
+			case float64:
+				attributes = append(attributes, attribute.Float64(key, v))
+			default:
+				attributes = append(attributes, attribute.String(key, fmt.Sprintf("%v", v)))
+			}
+		}
+	}
+
+	componentLogger.SetAttributes(attributes...)
+
+	return &Logger{
+		logger:    componentLogger,
+		component: component,
+		fields:    fields,
+	}
 }
 
-func (l *Logger) LogError(ctx context.Context, err error, msg string, fields ...interface{}) {
-	if l == nil || l.Logger == nil {
+// Info logs an info level message with attributes
+func (l *Logger) Info(msg string, keysAndValues ...interface{}) {
+	if l == nil {
 		return
 	}
-	args := make([]interface{}, 0, len(fields)+4)
-	args = append(args, "error", err)
-	args = append(args, "correlation_id", getCorrelationID(ctx))
-	args = append(args, fields...)
-	l.Logger.Error(msg, args...)
+	entry := l.logger.Info()
+	l.addAttributes(entry, keysAndValues...)
+	entry.Emit(msg)
 }
 
-func (l *Logger) LogInfo(ctx context.Context, msg string, fields ...interface{}) {
-	if l == nil || l.Logger == nil {
+// Error logs an error level message with attributes
+func (l *Logger) Error(msg string, keysAndValues ...interface{}) {
+	if l == nil {
 		return
 	}
-	args := make([]interface{}, 0, len(fields)+2)
-	args = append(args, "correlation_id", getCorrelationID(ctx))
-	args = append(args, fields...)
-	l.Logger.Info(msg, args...)
+	entry := l.logger.Error()
+	l.addAttributes(entry, keysAndValues...)
+	entry.Emit(msg)
 }
 
-func (l *Logger) LogDebug(ctx context.Context, msg string, fields ...interface{}) {
-	if l == nil || l.Logger == nil {
+// Warn logs a warn level message with attributes
+func (l *Logger) Warn(msg string, keysAndValues ...interface{}) {
+	if l == nil {
 		return
 	}
-	args := make([]interface{}, 0, len(fields)+2)
-	args = append(args, "correlation_id", getCorrelationID(ctx))
-	args = append(args, fields...)
-	l.Logger.Debug(msg, args...)
+	entry := l.logger.Warn()
+	l.addAttributes(entry, keysAndValues...)
+	entry.Emit(msg)
 }
 
-func (l *Logger) LogWarn(ctx context.Context, msg string, fields ...interface{}) {
-	if l == nil || l.Logger == nil {
+// Debug logs a debug level message with attributes
+func (l *Logger) Debug(msg string, keysAndValues ...interface{}) {
+	if l == nil {
 		return
 	}
-	args := make([]interface{}, 0, len(fields)+2)
-	args = append(args, "correlation_id", getCorrelationID(ctx))
-	args = append(args, fields...)
-	l.Logger.Warn(msg, args...)
+	entry := l.logger.Debug()
+	l.addAttributes(entry, keysAndValues...)
+	entry.Emit(msg)
 }
 
-type contextKey string
+// addAttributes adds key-value pairs as attributes to a log entry
+func (l *Logger) addAttributes(entry sentry.LogEntry, keysAndValues ...interface{}) {
+	for i := 0; i < len(keysAndValues); i += 2 {
+		if i+1 < len(keysAndValues) {
+			key := fmt.Sprintf("%v", keysAndValues[i])
+			value := keysAndValues[i+1]
 
-const correlationIDKey contextKey = "correlation_id"
-
-func WithCorrelationID(ctx context.Context, id string) context.Context {
-	return context.WithValue(ctx, correlationIDKey, id)
-}
-
-func getCorrelationID(ctx context.Context) string {
-	if id, ok := ctx.Value(correlationIDKey).(string); ok {
-		return id
+			switch v := value.(type) {
+			case string:
+				entry.String(key, v)
+			case int:
+				entry.Int(key, v)
+			case bool:
+				entry.Bool(key, v)
+			case float64:
+				entry.Float64(key, v)
+			default:
+				entry.String(key, fmt.Sprintf("%v", v))
+			}
+		}
 	}
-	return generateCorrelationID()
-}
-
-func generateCorrelationID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano())
-}
-
-type RequestFields struct {
-	Method    string
-	URL       string
-	UserAgent string
-	IP        string
-	Duration  time.Duration
-	Status    int
-}
-
-func (l *Logger) LogRequest(ctx context.Context, fields RequestFields) {
-	if l == nil || l.Logger == nil {
-		return
-	}
-	l.Logger.Info("HTTP request completed",
-		"correlation_id", getCorrelationID(ctx),
-		"method", fields.Method,
-		"url", fields.URL,
-		"user_agent", fields.UserAgent,
-		"ip", fields.IP,
-		"duration_ms", fields.Duration.Milliseconds(),
-		"status", fields.Status,
-	)
-}
-
-type GameEventFields struct {
-	EventType string
-	RoomID    string
-	PlayerID  string
-	GameState string
-}
-
-func (l *Logger) LogGameEvent(ctx context.Context, fields GameEventFields) {
-	if l == nil || l.Logger == nil {
-		return
-	}
-	l.Logger.Info("Game event",
-		"correlation_id", getCorrelationID(ctx),
-		"event_type", fields.EventType,
-		"room_id", fields.RoomID,
-		"player_id", fields.PlayerID,
-		"game_state", fields.GameState,
-	)
-}
-
-type WSEventFields struct {
-	EventType    string
-	ClientID     string
-	RoomID       string
-	MessageType  string
-	ConnectionIP string
-}
-
-func (l *Logger) LogWebSocketEvent(ctx context.Context, fields WSEventFields) {
-	if l == nil || l.Logger == nil {
-		return
-	}
-	l.Logger.Info("WebSocket event",
-		"correlation_id", getCorrelationID(ctx),
-		"event_type", fields.EventType,
-		"client_id", fields.ClientID,
-		"room_id", fields.RoomID,
-		"message_type", fields.MessageType,
-		"connection_ip", fields.ConnectionIP,
-	)
 }
