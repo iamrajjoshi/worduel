@@ -16,7 +16,8 @@
       "mcp__spec-workflow__get-approval-status",
       "mcp__spec-workflow__delete-approval",
       "Bash(mkdir:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(git mv:*)"
     ],
     "deny": [],
     "ask": []

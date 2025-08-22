@@ -68,8 +68,8 @@ The plan ensures that foundational components are solid before building dependen
   - Include proper resource cleanup and logging
   - _Requirements: 3.5, 3.6, 5.6_
 
-- [ ] 9. Create room management unit tests
-  - File: `backend/tests/unit/room_test.go`
+- [x] 9. Create room management unit tests
+  - File: `backend/internal/room/manager_test.go`
   - Test room creation, joining, expiration logic
   - Include concurrent access scenarios and race condition testing
   - Test cleanup mechanisms and resource management
