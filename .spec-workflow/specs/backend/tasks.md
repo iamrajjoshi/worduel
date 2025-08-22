@@ -28,7 +28,7 @@ The plan ensures that foundational components are solid before building dependen
   - Add IsValidGuess() and GetRandomTarget() methods
   - _Requirements: 4.1, 4.2, 4.3_
 
-- [ ] 4. Build core game logic engine
+- [x] 4. Build core game logic engine
   - File: `backend/internal/game/logic.go`
   - Implement ProcessGuess() method with letter matching algorithm
   - Add game state validation and transition logic
@@ -36,7 +36,7 @@ The plan ensures that foundational components are solid before building dependen
   - Include proper error handling for invalid inputs
   - _Requirements: 1.1, 1.3, 4.4, 5.3_
 
-- [ ] 5. Create game state management with thread safety
+- [x] 5. Create game state management with thread safety
   - File: `backend/internal/game/state.go`
   - Implement GameState methods with proper mutex locking
   - Add player management (AddPlayer, UpdatePlayer, RemovePlayer)
