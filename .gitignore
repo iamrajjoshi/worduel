@@ -28,6 +28,11 @@ build/
 .env.test.local
 .env.production.local
 
+# Backend environment files (keep templates but ignore configured ones)
+backend/.env.development
+backend/.env.production
+backend/.env
+
 # Logs
 *.log
 logs/
