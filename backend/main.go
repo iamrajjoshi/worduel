@@ -7,6 +7,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"worduel-backend/internal/api"
+	"worduel-backend/internal/room"
 )
 
 func main() {
@@ -16,6 +18,13 @@ func main() {
 	}
 
 	router := mux.NewRouter()
+	
+	// Initialize room manager
+	roomManager := room.NewRoomManager()
+	
+	// Initialize API handlers
+	roomHandler := api.NewRoomHandler(roomManager)
+	roomHandler.RegisterRoutes(router)
 	
 	// Setup CORS
 	c := cors.New(cors.Options{
