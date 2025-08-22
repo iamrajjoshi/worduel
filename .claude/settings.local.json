@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__spec-workflow__spec-list",
+      "mcp__spec-workflow__manage-tasks",
+      "Bash(go test:*)",
+      "Bash(go build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
