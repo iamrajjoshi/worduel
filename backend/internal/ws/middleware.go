@@ -11,9 +11,9 @@ import (
 
 // Security constants
 const (
-	// Rate limiting: 60 messages per minute per connection
-	maxMessagesPerMinute = 60
-	rateLimitWindow      = time.Minute
+	// Rate limiting: 5 messages per 5 seconds per connection (for easier testing)
+	maxMessagesPerMinute = 5
+	rateLimitWindow      = time.Second * 5
 	
 	// Connection limits per IP
 	maxConnectionsPerIP = 10

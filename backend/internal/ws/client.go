@@ -220,7 +220,7 @@ func (c *Client) readPump() {
 						Type:      game.MessageTypeError,
 						PlayerID:  c.playerID,
 						Timestamp: time.Now(),
-						Data: game.ErrorData{
+						Data: &game.ErrorData{
 							Code:    "RATE_LIMIT_EXCEEDED",
 							Message: "Rate limit exceeded. Please slow down.",
 						},
@@ -231,7 +231,7 @@ func (c *Client) readPump() {
 						Type:      game.MessageTypeError,
 						PlayerID:  c.playerID,
 						Timestamp: time.Now(),
-						Data: game.ErrorData{
+						Data: &game.ErrorData{
 							Code:    "MESSAGE_TOO_LARGE",
 							Message: "Message too large. Maximum size is 512 bytes.",
 						},
@@ -252,7 +252,7 @@ func (c *Client) readPump() {
 				Type:      game.MessageTypeError,
 				PlayerID:  c.playerID,
 				Timestamp: time.Now(),
-				Data: game.ErrorData{
+				Data: &game.ErrorData{
 					Code:    "INVALID_MESSAGE",
 					Message: "Invalid message format",
 				},

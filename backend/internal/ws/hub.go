@@ -41,6 +41,12 @@ type Hub struct {
 
 	// Hub statistics
 	stats HubStats
+	
+	// Shutdown signal
+	shutdown chan struct{}
+	
+	// Shutdown flag
+	isShuttingDown bool
 }
 
 // HubStats contains statistics about the hub
@@ -58,8 +64,9 @@ func NewHub(roomManager *room.RoomManager, gameLogic *game.GameLogic) *Hub {
 		roomClients: make(map[string]map[string]*Client),
 		register:    make(chan *Client),
 		unregister:  make(chan *Client),
-		broadcast:   make(chan *ClientMessage),
+		broadcast:   make(chan *ClientMessage, 1000),
 		roomManager: roomManager,
+		shutdown:    make(chan struct{}),
 		stats: HubStats{
 			LastUpdate: time.Now(),
 		},
@@ -91,6 +98,9 @@ func (h *Hub) Run() {
 
 		case clientMessage := <-h.broadcast:
 			h.messageHandler.HandleMessage(clientMessage)
+			
+		case <-h.shutdown:
+			return
 		}
 	}
 }
@@ -251,12 +261,17 @@ func (h *Hub) updateStats() {
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		h.mutex.Lock()
-		h.stats.ConnectedClients = len(h.clients)
-		h.stats.ActiveRooms = len(h.roomClients)
-		h.stats.LastUpdate = time.Now()
-		h.mutex.Unlock()
+	for {
+		select {
+		case <-ticker.C:
+			h.mutex.Lock()
+			h.stats.ConnectedClients = len(h.clients)
+			h.stats.ActiveRooms = len(h.roomClients)
+			h.stats.LastUpdate = time.Now()
+			h.mutex.Unlock()
+		case <-h.shutdown:
+			return
+		}
 	}
 }
 
@@ -285,12 +300,21 @@ func (h *Hub) CleanupExpiredConnections() {
 
 // Shutdown gracefully shuts down the hub
 func (h *Hub) Shutdown() {
-	h.mutex.RLock()
+	h.mutex.Lock()
+	if h.isShuttingDown {
+		h.mutex.Unlock()
+		return
+	}
+	h.isShuttingDown = true
+	
+	// Signal shutdown to the main loop
+	close(h.shutdown)
+	
 	clients := make([]*Client, 0, len(h.clients))
 	for _, client := range h.clients {
 		clients = append(clients, client)
 	}
-	h.mutex.RUnlock()
+	h.mutex.Unlock()
 
 	// Close all client connections
 	for _, client := range clients {

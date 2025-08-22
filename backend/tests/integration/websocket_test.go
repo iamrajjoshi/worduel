@@ -37,6 +37,7 @@ type TestServer struct {
 	hub         *ws.Hub
 	roomManager *room.RoomManager
 	gameLogic   *game.GameLogic
+	stopCh      chan struct{}
 }
 
 func setupTestServer(t *testing.T) *TestServer {
@@ -47,7 +48,11 @@ func setupTestServer(t *testing.T) *TestServer {
 	
 	// Create hub
 	hub := ws.NewHub(roomManager, gameLogic)
-	go hub.Run()
+	stopCh := make(chan struct{})
+	go func() {
+		hub.Run()
+		close(stopCh)
+	}()
 	
 	// Create HTTP handler
 	mux := http.NewServeMux()
@@ -66,6 +71,7 @@ func setupTestServer(t *testing.T) *TestServer {
 		hub:         hub,
 		roomManager: roomManager,
 		gameLogic:   gameLogic,
+		stopCh:      stopCh,
 	}
 }
 
@@ -73,8 +79,23 @@ func (ts *TestServer) Close() {
 	// Close the HTTP server first to stop new connections
 	ts.server.Close()
 	
-	// Note: Skipping hub.Shutdown() to avoid test deadlocks in integration tests
-	// In production, proper shutdown would be handled differently
+	// Give some time for connections to close naturally
+	time.Sleep(50 * time.Millisecond)
+	
+	// Shutdown the hub gracefully (non-blocking)
+	go func() {
+		if ts.hub != nil {
+			ts.hub.Shutdown()
+		}
+	}()
+	
+	// Wait for hub to finish with a short timeout
+	select {
+	case <-ts.stopCh:
+		// Hub finished gracefully
+	case <-time.After(100 * time.Millisecond):
+		// Timeout waiting for hub to finish - that's okay for tests
+	}
 }
 
 func (ts *TestServer) ConnectClient(t *testing.T, clientID string) *TestClient {
