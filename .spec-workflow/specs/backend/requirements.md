@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The backend service is the core engine that powers the multiplayer competitive Wordle experience. Built in Go for optimal performance and Docker deployment, it handles real-time multiplayer game coordination, room management, word validation, and game state synchronization between competing players. The backend serves as both a WebSocket hub for real-time communication and a REST API for room management operations, while embedding and serving the React frontend as static files.
+The backend service is the core engine that powers the multiplayer competitive Wordle experience. Built in Go for optimal performance and Docker deployment, it handles real-time multiplayer game coordination, room management, word validation, and game state synchronization between competing players. The backend serves as both a WebSocket hub for real-time communication and a REST API for room management operations.
 
 This backend enables two players to compete in solving the same Wordle puzzle while seeing each other's progress patterns (green/yellow/gray indicators) without revealing the actual letters guessed, maintaining the competitive tension while preserving game integrity.
 
@@ -11,7 +11,7 @@ This backend enables two players to compete in solving the same Wordle puzzle wh
 This backend directly supports the product steering goals by:
 - **Competitive Experience**: Enabling real-time multiplayer racing with opponent progress visibility
 - **Privacy-Preserving Competition**: Sharing progress patterns without revealing opponent strategies  
-- **Zero-Friction Deployment**: Single Docker container with embedded frontend for easy hosting
+- **Zero-Friction Deployment**: Single Docker container for easy hosting
 - **Performance Standards**: Sub-100ms latency and support for 1000+ concurrent connections
 - **Accessibility**: Providing clean APIs that support keyboard navigation and screen reader compatibility
 
@@ -96,19 +96,6 @@ The backend architecture follows the technical steering by implementing event-dr
 4. IF invalid room ID format is provided THEN the system SHALL return 400 Bad Request with error details
 5. WHEN CORS preflight requests are received THEN the system SHALL respond with appropriate headers for frontend access
 6. WHEN API rate limits are exceeded THEN the system SHALL return 429 Too Many Requests with retry-after header
-
-### Requirement 7: Static File Serving and Frontend Integration
-
-**User Story:** As a user, I want to access the game through a web browser without needing separate frontend hosting, so that deployment remains simple and self-contained.
-
-#### Acceptance Criteria
-
-1. WHEN GET / is requested THEN the system SHALL serve the embedded React frontend index.html file
-2. WHEN static assets are requested THEN the system SHALL serve embedded CSS, JS, and image files with appropriate MIME types
-3. WHEN frontend routes are accessed THEN the system SHALL serve index.html to support client-side routing
-4. IF static file is not found THEN the system SHALL return 404 with appropriate error page
-5. WHEN serving static files THEN the system SHALL set appropriate cache headers for performance
-6. WHEN frontend assets are requested THEN the system SHALL compress responses using gzip when supported
 
 ## Non-Functional Requirements
 
