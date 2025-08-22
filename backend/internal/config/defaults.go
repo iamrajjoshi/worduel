@@ -58,6 +58,15 @@ func getEnvStringSlice(key string, defaultValue []string) []string {
 	return defaultValue
 }
 
+func getEnvFloat64(key string, defaultValue float64) float64 {
+	if value := os.Getenv(key); value != "" {
+		if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
+			return floatValue
+		}
+	}
+	return defaultValue
+}
+
 func validate(config *Config) error {
 	if err := validateServerConfig(config.Server); err != nil {
 		return err
@@ -75,6 +84,12 @@ func validate(config *Config) error {
 		return err
 	}
 	if err := validateSecurityConfig(config.Security); err != nil {
+		return err
+	}
+	if err := validateLoggingConfig(config.Logging); err != nil {
+		return err
+	}
+	if err := validateSentryConfig(config.Sentry); err != nil {
 		return err
 	}
 	return nil
@@ -211,6 +226,43 @@ func validateSecurityConfig(config SecurityConfig) error {
 	
 	if config.ConnectionTimeout <= 0 {
 		return errors.New("connection timeout must be positive")
+	}
+	
+	return nil
+}
+
+func validateLoggingConfig(config LoggingConfig) error {
+	validLevels := []string{"debug", "info", "warn", "error"}
+	for _, validLevel := range validLevels {
+		if config.Level == validLevel {
+			goto levelValid
+		}
+	}
+	return errors.New("log level must be one of: debug, info, warn, error")
+
+levelValid:
+	if config.Service == "" {
+		return errors.New("service name cannot be empty")
+	}
+	
+	if config.Environment == "" {
+		return errors.New("environment cannot be empty")
+	}
+	
+	return nil
+}
+
+func validateSentryConfig(config SentryConfig) error {
+	if config.TracesSampleRate < 0 || config.TracesSampleRate > 1.0 {
+		return errors.New("Sentry traces sample rate must be between 0 and 1.0")
+	}
+	
+	if config.Environment == "" {
+		return errors.New("Sentry environment cannot be empty")
+	}
+	
+	if config.Release == "" {
+		return errors.New("Sentry release cannot be empty")
 	}
 	
 	return nil

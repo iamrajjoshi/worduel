@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"worduel-backend/internal/game"
+	"worduel-backend/internal/logging"
 	"worduel-backend/internal/room"
 )
 
@@ -58,7 +59,7 @@ type HubStats struct {
 }
 
 // NewHub creates a new WebSocket hub
-func NewHub(roomManager *room.RoomManager, gameLogic *game.GameLogic) *Hub {
+func NewHub(roomManager *room.RoomManager, gameLogic *game.GameLogic, logger *logging.Logger) *Hub {
 	hub := &Hub{
 		clients:     make(map[string]*Client),
 		roomClients: make(map[string]map[string]*Client),
@@ -73,7 +74,7 @@ func NewHub(roomManager *room.RoomManager, gameLogic *game.GameLogic) *Hub {
 	}
 
 	// Initialize message handler with hub reference
-	hub.messageHandler = NewMessageHandler(hub, roomManager, gameLogic)
+	hub.messageHandler = NewMessageHandler(hub, roomManager, gameLogic, logger)
 
 	return hub
 }

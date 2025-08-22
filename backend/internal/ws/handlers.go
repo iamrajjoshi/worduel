@@ -1,12 +1,13 @@
 package ws
 
 import (
+	"context"
 	"encoding/json"
-	"log"
 	"math/rand"
 	"time"
 
 	"worduel-backend/internal/game"
+	"worduel-backend/internal/logging"
 	"worduel-backend/internal/room"
 )
 
@@ -15,14 +16,16 @@ type MessageHandler struct {
 	hub         *Hub
 	roomManager *room.RoomManager
 	gameLogic   *game.GameLogic
+	logger      *logging.Logger
 }
 
 // NewMessageHandler creates a new message handler instance
-func NewMessageHandler(hub *Hub, roomManager *room.RoomManager, gameLogic *game.GameLogic) *MessageHandler {
+func NewMessageHandler(hub *Hub, roomManager *room.RoomManager, gameLogic *game.GameLogic, logger *logging.Logger) *MessageHandler {
 	return &MessageHandler{
 		hub:         hub,
 		roomManager: roomManager,
 		gameLogic:   gameLogic,
+		logger:      logger,
 	}
 }
 
@@ -45,7 +48,10 @@ func (mh *MessageHandler) HandleMessage(clientMessage *ClientMessage) {
 		mh.handleChatMessage(client, message)
 	default:
 		mh.sendError(client, "UNKNOWN_MESSAGE_TYPE", "Unknown message type: "+string(message.Type))
-		log.Printf("Unknown message type %s from client %s", message.Type, client.GetID())
+		ctx := logging.WithCorrelationID(context.Background(), client.GetID())
+		mh.logger.LogWarn(ctx, "Unknown message type received",
+			"message_type", string(message.Type),
+			"client_id", client.GetID())
 	}
 }
 
@@ -142,7 +148,17 @@ func (mh *MessageHandler) handleJoinMessage(client *Client, message *game.Messag
 	}
 	mh.broadcastToRoom(roomID, playerJoinedMessage, client.GetID())
 
-	log.Printf("Player %s (%s) joined room %s", playerName, client.GetID(), roomID)
+	ctx := logging.WithCorrelationID(context.Background(), client.GetID())
+	mh.logger.LogGameEvent(ctx, logging.GameEventFields{
+		EventType: "player_joined",
+		RoomID:    roomID,
+		PlayerID:  client.GetID(),
+		GameState: string(gameStatus),
+	})
+	mh.logger.LogInfo(ctx, "Player joined room",
+		"player_name", playerName,
+		"room_id", roomID,
+		"player_count", playerCount)
 }
 
 // handleLeaveMessage processes room leave requests
@@ -157,7 +173,10 @@ func (mh *MessageHandler) handleLeaveMessage(client *Client, message *game.Messa
 
 	// Leave room through room manager
 	if err := mh.roomManager.LeaveRoom(roomID, playerID); err != nil {
-		log.Printf("Error leaving room %s for player %s: %v", roomID, playerID, err)
+		ctx := logging.WithCorrelationID(context.Background(), client.GetID())
+		mh.logger.LogError(ctx, err, "Failed to leave room",
+			"room_id", roomID,
+			"player_id", playerID)
 		mh.sendError(client, "LEAVE_FAILED", "Failed to leave room: "+err.Error())
 		return
 	}
@@ -193,7 +212,13 @@ func (mh *MessageHandler) handleLeaveMessage(client *Client, message *game.Messa
 	}
 	mh.broadcastToRoom(roomID, playerLeftMessage, client.GetID())
 
-	log.Printf("Player %s left room %s", playerID, roomID)
+	ctx := logging.WithCorrelationID(context.Background(), client.GetID())
+	mh.logger.LogGameEvent(ctx, logging.GameEventFields{
+		EventType: "player_left",
+		RoomID:    roomID,
+		PlayerID:  playerID,
+		GameState: "unknown",
+	})
 }
 
 // handleGuessMessage processes guess submissions and integrates with game logic
@@ -271,8 +296,16 @@ func (mh *MessageHandler) handleGuessMessage(client *Client, message *game.Messa
 		mh.handleGameCompletion(gameRoom, winner)
 	}
 
-	log.Printf("Guess processed for player %s in room %s: %s (correct: %v)", 
-		playerID, roomID, word, guessResult.IsCorrect)
+	ctx := logging.WithCorrelationID(context.Background(), client.GetID())
+	mh.logger.LogGameEvent(ctx, logging.GameEventFields{
+		EventType: "guess_processed",
+		RoomID:    roomID,
+		PlayerID:  playerID,
+		GameState: "active",
+	})
+	mh.logger.LogInfo(ctx, "Guess processed",
+		"word", word,
+		"is_correct", guessResult.IsCorrect)
 }
 
 // handleChatMessage processes chat messages within rooms
@@ -321,7 +354,8 @@ func (mh *MessageHandler) startNewGame(room *game.Room) {
 	targetWord := words[rand.Intn(len(words))]
 
 	if err := mh.gameLogic.StartGame(room, targetWord); err != nil {
-		log.Printf("Failed to start game in room %s: %v", room.ID, err)
+		ctx := context.Background()
+		mh.logger.LogError(ctx, err, "Failed to start game", "room_id", room.ID)
 		return
 	}
 
@@ -338,7 +372,14 @@ func (mh *MessageHandler) startNewGame(room *game.Room) {
 	}
 
 	mh.broadcastToRoom(room.ID, gameStartMessage, "")
-	log.Printf("Game started in room %s with target word: %s", room.ID, targetWord)
+	ctx := context.Background()
+	mh.logger.LogGameEvent(ctx, logging.GameEventFields{
+		EventType: "game_started",
+		RoomID:    room.ID,
+		PlayerID:  "",
+		GameState: string(game.GameStatusActive),
+	})
+	mh.logger.LogInfo(ctx, "Game started", "room_id", room.ID, "target_word", targetWord)
 }
 
 // broadcastGameUpdate sends current game state to all players in room
@@ -377,7 +418,8 @@ func (mh *MessageHandler) broadcastGameUpdate(room *game.Room, triggeringPlayerI
 		}
 
 		if err := client.SendJSON(gameUpdateMessage); err != nil {
-			log.Printf("Failed to send game update to client %s: %v", clientID, err)
+			ctx := logging.WithCorrelationID(context.Background(), clientID)
+			mh.logger.LogError(ctx, err, "Failed to send game update", "client_id", clientID)
 		}
 	}
 }
@@ -404,7 +446,14 @@ func (mh *MessageHandler) handleGameCompletion(room *game.Room, winner string) {
 	// Send final game summary to all players
 	mh.broadcastGameUpdate(room, winner)
 	
-	log.Printf("Game completed in room %s. Winner: %s", roomID, winner)
+	ctx := context.Background()
+	mh.logger.LogGameEvent(ctx, logging.GameEventFields{
+		EventType: "game_completed",
+		RoomID:    roomID,
+		PlayerID:  winner,
+		GameState: string(game.GameStatusFinished),
+	})
+	mh.logger.LogInfo(ctx, "Game completed", "room_id", roomID, "winner", winner)
 }
 
 // Helper methods
@@ -445,14 +494,18 @@ func (mh *MessageHandler) broadcastToRoom(roomID string, message *game.Message, 
 
 	messageData, err := json.Marshal(message)
 	if err != nil {
-		log.Printf("Error marshaling broadcast message: %v", err)
+		ctx := context.Background()
+		mh.logger.LogError(ctx, err, "Error marshaling broadcast message", "room_id", roomID)
 		return
 	}
 
 	for clientID, client := range roomClients {
 		if clientID != excludeClientID && !client.IsClosed() {
 			if err := client.SendMessage(messageData); err != nil {
-				log.Printf("Error broadcasting to client %s: %v", clientID, err)
+				ctx := logging.WithCorrelationID(context.Background(), clientID)
+				mh.logger.LogError(ctx, err, "Error broadcasting message",
+					"client_id", clientID,
+					"room_id", roomID)
 			}
 		}
 	}

@@ -13,6 +13,8 @@ type Config struct {
 	Game     GameConfig
 	Security SecurityConfig
 	Dev      DevConfig
+	Logging  LoggingConfig
+	Sentry   SentryConfig
 }
 
 type ServerConfig struct {
@@ -63,6 +65,21 @@ type DevConfig struct {
 	ProfileMode bool
 }
 
+type LoggingConfig struct {
+	Level       string
+	Environment string
+	Service     string
+	AddSource   bool
+}
+
+type SentryConfig struct {
+	DSN              string
+	Environment      string
+	Release          string
+	TracesSampleRate float64
+	Debug            bool
+}
+
 func Load() (*Config, error) {
 	config := &Config{
 		Server:   loadServerConfig(),
@@ -72,6 +89,8 @@ func Load() (*Config, error) {
 		Game:     loadGameConfig(),
 		Security: loadSecurityConfig(),
 		Dev:      loadDevConfig(),
+		Logging:  loadLoggingConfig(),
+		Sentry:   loadSentryConfig(),
 	}
 
 	if err := validate(config); err != nil {
@@ -143,5 +162,24 @@ func loadDevConfig() DevConfig {
 		DebugMode:   getEnvBool("DEBUG_MODE", false),
 		VerboseLog:  getEnvBool("VERBOSE_LOG", false),
 		ProfileMode: getEnvBool("PROFILE_MODE", false),
+	}
+}
+
+func loadLoggingConfig() LoggingConfig {
+	return LoggingConfig{
+		Level:       getEnvString("LOG_LEVEL", "info"),
+		Environment: getEnvString("ENVIRONMENT", "development"),
+		Service:     getEnvString("SERVICE_NAME", "worduel-backend"),
+		AddSource:   getEnvBool("LOG_ADD_SOURCE", false),
+	}
+}
+
+func loadSentryConfig() SentryConfig {
+	return SentryConfig{
+		DSN:              getEnvString("SENTRY_DSN", ""),
+		Environment:      getEnvString("SENTRY_ENVIRONMENT", "development"),
+		Release:          getEnvString("SENTRY_RELEASE", "1.0.0"),
+		TracesSampleRate: getEnvFloat64("SENTRY_TRACES_SAMPLE_RATE", 0.1),
+		Debug:            getEnvBool("SENTRY_DEBUG", false),
 	}
 }

@@ -1,10 +1,13 @@
 package game
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"worduel-backend/internal/logging"
 )
 
 var (
@@ -19,12 +22,14 @@ var (
 // GameLogic handles core game mechanics and state transitions
 type GameLogic struct {
 	dictionary *Dictionary
+	logger     *logging.Logger
 }
 
 // NewGameLogic creates a new game logic instance
-func NewGameLogic(dictionary *Dictionary) *GameLogic {
+func NewGameLogic(dictionary *Dictionary, logger *logging.Logger) *GameLogic {
 	return &GameLogic{
 		dictionary: dictionary,
+		logger:     logger,
 	}
 }
 
@@ -105,6 +110,24 @@ func (gl *GameLogic) ProcessGuess(room *Room, playerID, word string) (*GuessResu
 
 	// Update game state based on guess result
 	gl.updateGameState(room, playerID, isCorrect)
+
+	// Log the guess processing
+	if gl.logger != nil {
+		ctx := logging.WithCorrelationID(context.Background(), playerID)
+		gl.logger.LogGameEvent(ctx, logging.GameEventFields{
+			EventType: "guess_processed",
+			RoomID:    room.ID,
+			PlayerID:  playerID,
+			GameState: string(room.GameState.Status),
+		})
+		
+		if isCorrect {
+			gl.logger.LogInfo(ctx, "Player guessed correctly", 
+				"word", normalizedWord,
+				"room_id", room.ID,
+				"guess_count", len(player.Guesses))
+		}
+	}
 
 	return guessResult, nil
 }
@@ -364,6 +387,21 @@ func (gl *GameLogic) StartGame(room *Room, targetWord string) error {
 	}
 	
 	room.UpdatedAt = now
+	
+	// Log game start
+	if gl.logger != nil {
+		ctx := context.Background()
+		gl.logger.LogGameEvent(ctx, logging.GameEventFields{
+			EventType: "game_started",
+			RoomID:    room.ID,
+			PlayerID:  "",
+			GameState: string(GameStatusActive),
+		})
+		gl.logger.LogInfo(ctx, "Game started",
+			"room_id", room.ID,
+			"player_count", len(room.Players),
+			"target_word", normalizedTarget)
+	}
 	
 	return nil
 }

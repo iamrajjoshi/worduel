@@ -1,13 +1,14 @@
 package ws
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
 	"worduel-backend/internal/game"
+	"worduel-backend/internal/logging"
 	"worduel-backend/internal/room"
 )
 
@@ -17,11 +18,11 @@ type Handler struct {
 	roomManager *room.RoomManager
 	dictionary  *game.Dictionary
 	upgrader    websocket.Upgrader
-	logger      *log.Logger
+	logger      *logging.Logger
 }
 
 // NewHandler creates a new WebSocket handler
-func NewHandler(hub *Hub, roomManager *room.RoomManager, dictionary *game.Dictionary) *Handler {
+func NewHandler(hub *Hub, roomManager *room.RoomManager, dictionary *game.Dictionary, logger *logging.Logger) *Handler {
 	return &Handler{
 		hub:         hub,
 		roomManager: roomManager,
@@ -34,7 +35,7 @@ func NewHandler(hub *Hub, roomManager *room.RoomManager, dictionary *game.Dictio
 				return true
 			},
 		},
-		logger: log.New(log.Writer(), "[WS] ", log.LstdFlags|log.Lshortfile),
+		logger: logger,
 	}
 }
 
@@ -43,7 +44,8 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Upgrade HTTP connection to WebSocket
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		h.logger.Printf("WebSocket upgrade failed: %v", err)
+		ctx := context.Background()
+		h.logger.LogError(ctx, err, "WebSocket upgrade failed", "remote_addr", r.RemoteAddr)
 		return
 	}
 
@@ -57,7 +59,8 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Create new client
 	client := NewClient(conn, h.hub, clientID, clientIP)
 	if client == nil {
-		h.logger.Println("Failed to create WebSocket client")
+		ctx := logging.WithCorrelationID(context.Background(), clientID)
+		h.logger.LogError(ctx, nil, "Failed to create WebSocket client", "client_ip", clientIP)
 		conn.Close()
 		return
 	}
@@ -65,7 +68,14 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Register client with hub
 	h.hub.register <- client
 
-	h.logger.Printf("Client %s connected from %s", client.GetID(), clientIP)
+	ctx := logging.WithCorrelationID(context.Background(), clientID)
+	h.logger.LogWebSocketEvent(ctx, logging.WSEventFields{
+		EventType:    "client_connected",
+		ClientID:     clientID,
+		RoomID:       "",
+		MessageType:  "",
+		ConnectionIP: clientIP,
+	})
 
 	// Start client goroutines
 	go client.writePump()

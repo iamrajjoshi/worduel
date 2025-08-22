@@ -8,7 +8,7 @@ import (
 func TestGameLogic_ProcessGuess(t *testing.T) {
 	// Create dictionary and game logic
 	dict := NewDictionary()
-	logic := NewGameLogic(dict)
+	logic := NewGameLogic(dict, nil) // nil logger for tests
 
 	tests := []struct {
 		name          string
