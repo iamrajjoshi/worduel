@@ -76,7 +76,7 @@ The plan ensures that foundational components are solid before building dependen
   - Add edge cases for room limits and validation
   - _Requirements: 3.1, 3.2, 3.5_
 
-- [ ] 10. Build WebSocket client connection management
+- [x] 10. Build WebSocket client connection management
   - File: `backend/internal/ws/client.go`
   - Create Client struct with connection handling and message queuing
   - Implement connection read/write goroutines with proper error handling
@@ -84,7 +84,7 @@ The plan ensures that foundational components are solid before building dependen
   - Include connection cleanup and resource management
   - _Requirements: 2.1, 2.3_
 
-- [ ] 11. Implement WebSocket hub and message broadcasting
+- [x] 11. Implement WebSocket hub and message broadcasting
   - File: `backend/internal/ws/hub.go`
   - Create Hub struct managing client connections and room-based broadcasting
   - Implement client registration, unregistration, and message routing
@@ -92,7 +92,7 @@ The plan ensures that foundational components are solid before building dependen
   - Include hub lifecycle management and graceful shutdown
   - _Requirements: 2.1, 2.2, 2.6_
 
-- [ ] 12. Create WebSocket message handlers and routing
+- [x] 12. Create WebSocket message handlers and routing
   - File: `backend/internal/ws/handlers.go`
   - Implement message type routing (join, guess, status)
   - Add guess processing integration with game logic
@@ -100,7 +100,7 @@ The plan ensures that foundational components are solid before building dependen
   - Include proper error handling and client disconnection logic
   - _Requirements: 1.2, 2.2, 2.5_
 
-- [ ] 13. Add WebSocket rate limiting and security
+- [x] 13. Add WebSocket rate limiting and security
   - File: `backend/internal/ws/middleware.go`
   - Implement per-connection rate limiting (60 messages/minute)
   - Add message size validation and origin checking

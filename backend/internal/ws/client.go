@@ -3,6 +3,7 @@ package ws
 import (
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -37,9 +38,9 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		// Allow connections from any origin for now
-		// In production, this should be more restrictive
-		return true
+		// Origin checking is now handled by SecurityMiddleware
+		// This will be overridden in ServeWS
+		return false
 	},
 }
 
@@ -66,6 +67,7 @@ type Client struct {
 	// Connection metadata
 	connectedAt time.Time
 	lastPong    time.Time
+	clientIP    string
 
 	// Mutex for protecting concurrent access
 	mutex sync.RWMutex
@@ -75,7 +77,7 @@ type Client struct {
 }
 
 // NewClient creates a new WebSocket client
-func NewClient(conn *websocket.Conn, hub *Hub, clientID string) *Client {
+func NewClient(conn *websocket.Conn, hub *Hub, clientID string, clientIP string) *Client {
 	return &Client{
 		conn:        conn,
 		send:        make(chan []byte, 256),
@@ -83,6 +85,7 @@ func NewClient(conn *websocket.Conn, hub *Hub, clientID string) *Client {
 		hub:         hub,
 		connectedAt: time.Now(),
 		lastPong:    time.Now(),
+		clientIP:    clientIP,
 		closed:      false,
 	}
 }
@@ -114,6 +117,13 @@ func (c *Client) GetPlayerID() string {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 	return c.playerID
+}
+
+// GetClientIP returns the client's IP address
+func (c *Client) GetClientIP() string {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	return c.clientIP
 }
 
 // IsClosed returns whether the connection is closed
@@ -200,6 +210,38 @@ func (c *Client) readPump() {
 				log.Printf("WebSocket error for client %s: %v", c.id, err)
 			}
 			break
+		}
+
+		// Check rate limiting if hub has security middleware
+		if c.hub.securityMiddleware != nil {
+			if err := c.hub.securityMiddleware.CheckMessageRate(c.id, len(message)); err != nil {
+				if err == ErrRateLimitExceeded {
+					c.SendJSON(&game.Message{
+						Type:      game.MessageTypeError,
+						PlayerID:  c.playerID,
+						Timestamp: time.Now(),
+						Data: game.ErrorData{
+							Code:    "RATE_LIMIT_EXCEEDED",
+							Message: "Rate limit exceeded. Please slow down.",
+						},
+					})
+					continue
+				} else if err == ErrMessageTooLarge {
+					c.SendJSON(&game.Message{
+						Type:      game.MessageTypeError,
+						PlayerID:  c.playerID,
+						Timestamp: time.Now(),
+						Data: game.ErrorData{
+							Code:    "MESSAGE_TOO_LARGE",
+							Message: "Message too large. Maximum size is 512 bytes.",
+						},
+					})
+					continue
+				}
+				// For other errors, log and break
+				log.Printf("Security check failed for client %s: %v", c.id, err)
+				break
+			}
 		}
 
 		// Parse and validate message
@@ -307,13 +349,44 @@ func (cm *ClientMessage) GetMessage() *game.Message {
 
 // ServeWS handles WebSocket requests from clients
 func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request, clientID string) {
+	// Perform security validation if middleware is available
+	var clientIP string
+	if hub.securityMiddleware != nil {
+		if err := hub.securityMiddleware.ValidateConnection(r, clientID); err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
+		
+		// Override the upgrader's CheckOrigin to use our middleware
+		upgrader.CheckOrigin = func(req *http.Request) bool {
+			return hub.securityMiddleware.checkOrigin(req) == nil
+		}
+		
+		// Extract client IP for later use
+		clientIP = hub.securityMiddleware.getClientIP(r)
+	} else {
+		// Fallback for when security middleware is not configured
+		upgrader.CheckOrigin = func(req *http.Request) bool {
+			return true // Allow all origins if no security middleware
+		}
+		
+		// Basic IP extraction
+		clientIP = r.RemoteAddr
+		if ip, _, err := net.SplitHostPort(clientIP); err == nil {
+			clientIP = ip
+		}
+	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade failed for client %s: %v", clientID, err)
+		if hub.securityMiddleware != nil {
+			hub.securityMiddleware.OnConnectionClosed(clientID, clientIP)
+		}
 		return
 	}
 
-	client := NewClient(conn, hub, clientID)
+	client := NewClient(conn, hub, clientID, clientIP)
 	
 	// Register client with hub
 	hub.register <- client

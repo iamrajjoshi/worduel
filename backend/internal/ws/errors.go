@@ -12,4 +12,11 @@ var (
 	ErrConnectionClosed   = errors.New("connection is closed")
 	ErrMessageQueueFull   = errors.New("message queue is full")
 	ErrRateLimitExceeded  = errors.New("rate limit exceeded")
+	
+	// Security-related errors
+	ErrInvalidOrigin       = errors.New("invalid origin")
+	ErrMessageTooLarge     = errors.New("message too large")
+	ErrTooManyConnections  = errors.New("too many connections from IP")
+	ErrServerOverloaded    = errors.New("server overloaded")
+	ErrConnectionNotFound  = errors.New("connection not found in rate limiter")
 )

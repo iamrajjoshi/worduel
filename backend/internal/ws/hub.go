@@ -33,6 +33,9 @@ type Hub struct {
 	// Message handler for processing WebSocket messages
 	messageHandler *MessageHandler
 
+	// Security middleware for rate limiting and validation
+	securityMiddleware *SecurityMiddleware
+
 	// Mutex for protecting concurrent access
 	mutex sync.RWMutex
 
@@ -66,6 +69,11 @@ func NewHub(roomManager *room.RoomManager, gameLogic *game.GameLogic) *Hub {
 	hub.messageHandler = NewMessageHandler(hub, roomManager, gameLogic)
 
 	return hub
+}
+
+// SetSecurityMiddleware configures security middleware for the hub
+func (h *Hub) SetSecurityMiddleware(middleware *SecurityMiddleware) {
+	h.securityMiddleware = middleware
 }
 
 // Run starts the hub and handles client registration/unregistration and message broadcasting
@@ -130,6 +138,11 @@ func (h *Hub) handleClientUnregister(client *Client) {
 		if client.GetPlayerID() != "" {
 			h.handlePlayerDisconnection(client)
 		}
+	}
+
+	// Notify security middleware about disconnection
+	if h.securityMiddleware != nil {
+		h.securityMiddleware.OnConnectionClosed(clientID, client.GetClientIP())
 	}
 
 	// Close the client connection
