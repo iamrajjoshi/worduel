@@ -15,7 +15,7 @@ func TestHealthCheck(t *testing.T) {
 	// Setup
 	roomManager := room.NewRoomManager()
 	dictionary := game.NewDictionary()
-	handler := NewHealthHandler(roomManager, dictionary)
+	handler := NewHealthHandler(roomManager, dictionary, nil)
 	
 	router := mux.NewRouter()
 	handler.RegisterRoutes(router)
@@ -81,7 +81,7 @@ func TestHealthCheckWithRooms(t *testing.T) {
 	// Setup
 	roomManager := room.NewRoomManager()
 	dictionary := game.NewDictionary()
-	handler := NewHealthHandler(roomManager, dictionary)
+	handler := NewHealthHandler(roomManager, dictionary, nil)
 	
 	router := mux.NewRouter()
 	handler.RegisterRoutes(router)
@@ -145,7 +145,7 @@ func TestLivenessProbe(t *testing.T) {
 	// Setup
 	roomManager := room.NewRoomManager()
 	dictionary := game.NewDictionary()
-	handler := NewHealthHandler(roomManager, dictionary)
+	handler := NewHealthHandler(roomManager, dictionary, nil)
 	
 	router := mux.NewRouter()
 	handler.RegisterRoutes(router)
@@ -178,7 +178,7 @@ func TestReadinessProbe(t *testing.T) {
 	// Setup
 	roomManager := room.NewRoomManager()
 	dictionary := game.NewDictionary()
-	handler := NewHealthHandler(roomManager, dictionary)
+	handler := NewHealthHandler(roomManager, dictionary, nil)
 	
 	router := mux.NewRouter()
 	handler.RegisterRoutes(router)
@@ -210,7 +210,7 @@ func TestReadinessProbe(t *testing.T) {
 func TestReadinessProbeUnhealthy(t *testing.T) {
 	// Setup with nil dictionary to simulate unhealthy dependency
 	roomManager := room.NewRoomManager()
-	handler := NewHealthHandler(roomManager, nil) // Nil dictionary
+	handler := NewHealthHandler(roomManager, nil, nil) // Nil dictionary
 	
 	router := mux.NewRouter()
 	handler.RegisterRoutes(router)
@@ -239,7 +239,7 @@ func TestDictionaryHealthCheck(t *testing.T) {
 	// Test with healthy dictionary
 	roomManager := room.NewRoomManager()
 	dictionary := game.NewDictionary()
-	handler := NewHealthHandler(roomManager, dictionary)
+	handler := NewHealthHandler(roomManager, dictionary, nil)
 
 	health := handler.checkDictionaryHealth()
 
@@ -252,7 +252,7 @@ func TestDictionaryHealthCheck(t *testing.T) {
 	}
 
 	// Test with nil dictionary
-	handler2 := NewHealthHandler(roomManager, nil)
+	handler2 := NewHealthHandler(roomManager, nil, nil)
 	health2 := handler2.checkDictionaryHealth()
 
 	if health2.Status != HealthStatusUnhealthy {
@@ -267,7 +267,7 @@ func TestDictionaryHealthCheck(t *testing.T) {
 func TestSystemMetricsCollection(t *testing.T) {
 	roomManager := room.NewRoomManager()
 	dictionary := game.NewDictionary()
-	handler := NewHealthHandler(roomManager, dictionary)
+	handler := NewHealthHandler(roomManager, dictionary, nil)
 
 	metrics := handler.collectSystemMetrics()
 
@@ -291,7 +291,7 @@ func TestSystemMetricsCollection(t *testing.T) {
 func TestOverallHealthDetermination(t *testing.T) {
 	roomManager := room.NewRoomManager()
 	dictionary := game.NewDictionary()
-	handler := NewHealthHandler(roomManager, dictionary)
+	handler := NewHealthHandler(roomManager, dictionary, nil)
 
 	// Test healthy scenario
 	systemMetrics := SystemMetrics{

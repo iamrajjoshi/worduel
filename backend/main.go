@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 	"worduel-backend/internal/api"
 	"worduel-backend/internal/game"
 	"worduel-backend/internal/room"
@@ -28,23 +27,25 @@ func main() {
 	// Initialize room manager
 	roomManager := room.NewRoomManager()
 	
+	// Setup API middleware with CORS, rate limiting, and security
+	allowedOrigins := []string{"http://localhost:3000"}
+	if customOrigins := os.Getenv("ALLOWED_ORIGINS"); customOrigins != "" {
+		// Allow environment variable override for production
+		allowedOrigins = []string{customOrigins}
+	}
+	
+	apiMiddleware := api.NewAPIMiddleware(allowedOrigins)
+	
 	// Initialize API handlers
 	roomHandler := api.NewRoomHandler(roomManager)
 	roomHandler.RegisterRoutes(router)
 	
-	// Initialize health monitoring
-	healthHandler := api.NewHealthHandler(roomManager, dictionary)
+	// Initialize health monitoring (pass middleware for stats)
+	healthHandler := api.NewHealthHandler(roomManager, dictionary, apiMiddleware)
 	healthHandler.RegisterRoutes(router)
 	
-	// Setup CORS
-	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"http://localhost:3000"},
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders: []string{"*"},
-		AllowCredentials: true,
-	})
-
-	handler := c.Handler(router)
+	// Apply middleware to all routes
+	handler := apiMiddleware.ApplyMiddlewares(router)
 
 	log.Printf("Server starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, handler))

@@ -14,17 +14,19 @@ import (
 
 // HealthHandler handles health check and system monitoring endpoints
 type HealthHandler struct {
-	roomManager *room.RoomManager
-	dictionary  *game.Dictionary
-	startTime   time.Time
+	roomManager   *room.RoomManager
+	dictionary    *game.Dictionary
+	apiMiddleware *APIMiddleware
+	startTime     time.Time
 }
 
 // NewHealthHandler creates a new HealthHandler instance
-func NewHealthHandler(roomManager *room.RoomManager, dictionary *game.Dictionary) *HealthHandler {
+func NewHealthHandler(roomManager *room.RoomManager, dictionary *game.Dictionary, apiMiddleware *APIMiddleware) *HealthHandler {
 	return &HealthHandler{
-		roomManager: roomManager,
-		dictionary:  dictionary,
-		startTime:   time.Now(),
+		roomManager:   roomManager,
+		dictionary:    dictionary,
+		apiMiddleware: apiMiddleware,
+		startTime:     time.Now(),
 	}
 }
 
@@ -69,6 +71,7 @@ type MemoryMetrics struct {
 // ApplicationMetrics represents application-specific metrics
 type ApplicationMetrics struct {
 	Rooms            RoomMetrics       `json:"rooms"`
+	API              APIStats          `json:"api"`
 	RequestCount     int64            `json:"requestCount,omitempty"`     // Future: request counter
 	AverageResponseTime float64       `json:"averageResponseTime,omitempty"` // Future: response time tracking
 }
@@ -220,9 +223,15 @@ func (h *HealthHandler) collectSystemMetrics() SystemMetrics {
 // collectApplicationMetrics gathers application-specific metrics
 func (h *HealthHandler) collectApplicationMetrics() ApplicationMetrics {
 	roomMetrics := h.collectRoomMetrics()
+	apiStats := APIStats{}
+	
+	if h.apiMiddleware != nil {
+		apiStats = h.apiMiddleware.GetAPIStats()
+	}
 	
 	return ApplicationMetrics{
 		Rooms: roomMetrics,
+		API:   apiStats,
 		// Future: Add request count and response time tracking
 	}
 }
