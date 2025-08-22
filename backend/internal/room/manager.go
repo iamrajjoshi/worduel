@@ -25,14 +25,16 @@ var (
 
 // RoomManager manages all game rooms with thread-safe operations
 type RoomManager struct {
-	rooms map[string]*game.Room
-	mutex sync.RWMutex
+	rooms             map[string]*game.Room
+	mutex             sync.RWMutex
+	maxConcurrentRooms int
 }
 
 // NewRoomManager creates a new instance of RoomManager
 func NewRoomManager() *RoomManager {
 	return &RoomManager{
-		rooms: make(map[string]*game.Room),
+		rooms:             make(map[string]*game.Room),
+		maxConcurrentRooms: 1000, // Default max rooms
 	}
 }
 
@@ -246,4 +248,43 @@ func (rm *RoomManager) isValidRoomCode(code string) bool {
 	}
 
 	return true
+}
+
+// SetMaxConcurrentRooms sets the maximum number of concurrent rooms
+func (rm *RoomManager) SetMaxConcurrentRooms(max int) {
+	rm.mutex.Lock()
+	defer rm.mutex.Unlock()
+	rm.maxConcurrentRooms = max
+}
+
+// CleanupExpiredRooms removes rooms that have been inactive for longer than the timeout
+func (rm *RoomManager) CleanupExpiredRooms(timeout time.Duration) int {
+	rm.mutex.Lock()
+	defer rm.mutex.Unlock()
+	
+	now := time.Now()
+	var toDelete []string
+	
+	for roomID, room := range rm.rooms {
+		// Check if room has been inactive for too long
+		if now.Sub(room.UpdatedAt) > timeout {
+			toDelete = append(toDelete, roomID)
+		}
+	}
+	
+	// Delete expired rooms
+	for _, roomID := range toDelete {
+		delete(rm.rooms, roomID)
+	}
+	
+	return len(toDelete)
+}
+
+// Shutdown gracefully shuts down the room manager
+func (rm *RoomManager) Shutdown() {
+	rm.mutex.Lock()
+	defer rm.mutex.Unlock()
+	
+	// Clear all rooms
+	rm.rooms = make(map[string]*game.Room)
 }
