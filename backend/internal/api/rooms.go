@@ -170,32 +170,12 @@ func (h *RoomHandler) GetRoom(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// HealthCheck handles GET /health requests
-func (h *RoomHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	roomCount := h.roomManager.GetRoomCount()
-
-	health := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now(),
-		"rooms":     roomCount,
-		"version":   "1.0.0",
-	}
-
-	if err := json.NewEncoder(w).Encode(health); err != nil {
-		log.Printf("Failed to encode health check response: %v", err)
-	}
-}
 
 // RegisterRoutes registers all room-related routes to the router
 func (h *RoomHandler) RegisterRoutes(router *mux.Router) {
 	// Room operations
 	router.HandleFunc("/api/rooms", h.CreateRoom).Methods("POST")
 	router.HandleFunc("/api/rooms/{id}", h.GetRoom).Methods("GET")
-	
-	// Health check
-	router.HandleFunc("/health", h.HealthCheck).Methods("GET")
 }
 
 // sendError sends a standardized error response

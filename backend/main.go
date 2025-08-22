@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"worduel-backend/internal/api"
+	"worduel-backend/internal/game"
 	"worduel-backend/internal/room"
 )
 
@@ -19,12 +20,21 @@ func main() {
 
 	router := mux.NewRouter()
 	
+	// Initialize dictionary
+	dictionary := game.NewDictionary()
+	log.Printf("Dictionary loaded: %d common words, %d valid words", 
+		dictionary.GetCommonWordsCount(), dictionary.GetValidWordsCount())
+	
 	// Initialize room manager
 	roomManager := room.NewRoomManager()
 	
 	// Initialize API handlers
 	roomHandler := api.NewRoomHandler(roomManager)
 	roomHandler.RegisterRoutes(router)
+	
+	// Initialize health monitoring
+	healthHandler := api.NewHealthHandler(roomManager, dictionary)
+	healthHandler.RegisterRoutes(router)
 	
 	// Setup CORS
 	c := cors.New(cors.Options{
