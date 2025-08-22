@@ -1,5 +1,7 @@
 # Worduel 🎯
 
+![Tests](https://github.com/iamrajjoshi/worduel/actions/workflows/test.yml/badge.svg?branch=main)
+
 A real-time multiplayer word guessing game where players compete to solve word puzzles faster than their opponents. Built with Go backend and WebSocket support for seamless multiplayer gameplay.
 
 ## Features
