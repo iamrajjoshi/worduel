@@ -132,7 +132,7 @@ The plan ensures that foundational components are solid before building dependen
   - Create structured health response format
   - _Requirements: 6.3_
 
-- [ ] 17. Implement API middleware and security
+- [x] 17. Implement API middleware and security
   - File: `backend/internal/api/middleware.go`
   - Add CORS configuration for frontend access
   - Implement API rate limiting and request logging
@@ -140,7 +140,7 @@ The plan ensures that foundational components are solid before building dependen
   - Include security headers and request validation
   - _Requirements: 6.5, 6.6_
 
-- [ ] 18. Write REST API integration tests
+- [x] 18. Write REST API integration tests
   - File: `backend/tests/integration/api_test.go`
   - Test all REST endpoints with various inputs and edge cases
   - Include error handling scenarios and status code validation
@@ -148,7 +148,7 @@ The plan ensures that foundational components are solid before building dependen
   - Add API performance and rate limiting tests
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 19. Create application configuration management
+- [x] 19. Create application configuration management
   - Files: `backend/internal/config/config.go`, `backend/internal/config/defaults.go`
   - Implement environment variable configuration loading
   - Add configuration validation and default value handling
@@ -156,7 +156,7 @@ The plan ensures that foundational components are solid before building dependen
   - Include configuration documentation and validation
   - _Requirements: All (foundation)_
 
-- [ ] 20. Integrate all components in main application
+- [x] 20. Integrate all components in main application
   - File: `backend/main.go`
   - Wire up all components (hub, room manager, API handlers)
   - Implement graceful shutdown with proper resource cleanup
@@ -164,15 +164,18 @@ The plan ensures that foundational components are solid before building dependen
   - Create HTTP server setup with WebSocket upgrade handling
   - _Requirements: All_
 
-- [ ] 21. Add comprehensive logging and monitoring
-  - File: `backend/internal/logging/logger.go`
-  - Implement structured JSON logging with appropriate levels
-  - Add request tracing and performance metrics collection
-  - Create log correlation across components and requests
-  - Include error tracking and debugging capabilities
+- [x] 21. Add comprehensive logging and monitoring via Sentry with slog
+  - Files: `backend/internal/logging/logger.go`, `backend/internal/logging/sentry.go`
+  - Implement structured slog-based logging with Sentry integration
+  - Add Sentry error tracking and performance monitoring with HTTP middleware
+  - Create centralized logger configuration with context-aware logging
+  - Include request tracing, correlation IDs, and structured log attributes
+  - Set up Sentry slog handler for automatic error reporting and log aggregation
+  - Add performance metrics collection and distributed tracing capabilities
   - _Requirements: All (monitoring and debugging)_
+  - _Dependencies: `go get github.com/getsentry/sentry-go github.com/getsentry/sentry-go/http github.com/getsentry/sentry-go/slog`_
 
-- [ ] 22. Write end-to-end integration tests
+- [-] 22. Write end-to-end integration tests
   - File: `backend/tests/integration/e2e_test.go`
   - Test complete user journey from room creation to game completion
   - Include multi-player competitive game scenarios
