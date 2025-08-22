@@ -8,10 +8,11 @@ import (
 )
 
 // Embed word list files
-//go:embed common.txt
+//
+//go:embed assets/common.txt
 var commonWordsData string
 
-//go:embed valid.txt
+//go:embed assets/valid.txt
 var validWordsData string
 
 // Dictionary manages word lists and validation
