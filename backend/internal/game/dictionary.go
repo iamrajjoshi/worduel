@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
-	"time"
 )
 
 // Embed word list files
@@ -19,14 +18,12 @@ var validWordsData string
 type Dictionary struct {
 	commonWords []string
 	validWords  map[string]bool
-	rand        *rand.Rand
 	mutex       sync.RWMutex
 }
 
 // NewDictionary creates a new dictionary with embedded word lists
 func NewDictionary() *Dictionary {
 	d := &Dictionary{
-		rand:       rand.New(rand.NewSource(time.Now().UnixNano())),
 		validWords: make(map[string]bool),
 	}
 
@@ -78,7 +75,7 @@ func (d *Dictionary) GetRandomTarget() string {
 		return "wordle" // Fallback word
 	}
 
-	index := d.rand.Intn(len(d.commonWords))
+	index := rand.Intn(len(d.commonWords))
 	return d.commonWords[index]
 }
 
