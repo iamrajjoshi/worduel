@@ -1,0 +1,116 @@
+# Docker Compose for Worduel Backend - Production Configuration
+# Optimized for production deployment with minimal attack surface
+
+version: '3.8'
+
+services:
+  worduel-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production  # Use minimal scratch-based image
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      # Server Configuration
+      - PORT=8080
+      - HOST=0.0.0.0
+      - READ_TIMEOUT=30s
+      - WRITE_TIMEOUT=30s
+      - IDLE_TIMEOUT=120s
+      - SHUTDOWN_TIMEOUT=30s
+      
+      # CORS Configuration (restrict in production)
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://yourdomain.com}
+      - ALLOW_CREDENTIALS=true
+      - MAX_AGE=3600
+      
+      # Rate Limiting (stricter in production)
+      - RATE_LIMIT_ENABLED=true
+      - RATE_LIMIT_REQUESTS_PER_MINUTE=${RATE_LIMIT_RPM:-120}
+      - RATE_LIMIT_BURST=${RATE_LIMIT_BURST:-20}
+      
+      # Security (enabled in production)
+      - VALIDATE_ORIGIN=true
+      - REQUIRE_HOST_HEADER=true
+      - SECURE_HEADERS=true
+      
+      # Logging (structured for production)
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_FORMAT=json
+      - DEBUG_MODE=false
+      
+      # Sentry Configuration
+      - SENTRY_ENABLED=${SENTRY_ENABLED:-true}
+      - SENTRY_DSN=${SENTRY_DSN}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
+      - SENTRY_RELEASE=${SENTRY_RELEASE:-latest}
+      - SENTRY_SAMPLE_RATE=${SENTRY_SAMPLE_RATE:-1.0}
+      - SENTRY_TRACES_SAMPLE_RATE=${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+      
+    # Health check using external tools (since scratch doesn't have curl)
+    # Note: In production, use orchestrator health checks
+    restart: unless-stopped
+    
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    
+    # Security settings
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    
+    networks:
+      - worduel-network
+
+  # Log aggregation (optional)
+  fluentd:
+    image: fluentd:v1.16-1
+    volumes:
+      - ./fluentd.conf:/fluentd/etc/fluentd.conf:ro
+    networks:
+      - worduel-network
+    profiles:
+      - with-logging
+
+networks:
+  worduel-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: worduel-br0
+
+# Production deployment commands:
+#
+# 1. Set environment variables:
+#    export ALLOWED_ORIGINS="https://yourdomain.com"
+#    export SENTRY_DSN="your_sentry_dsn"
+#    export SENTRY_ENVIRONMENT="production"
+#
+# 2. Deploy:
+#    docker-compose -f docker-compose.prod.yml up -d
+#
+# 3. Scale backend:
+#    docker-compose -f docker-compose.prod.yml up -d --scale worduel-backend=3
+#
+# 4. Monitor logs:
+#    docker-compose -f docker-compose.prod.yml logs -f
+#
+# 5. Rolling update:
+#    docker-compose -f docker-compose.prod.yml up -d --force-recreate
