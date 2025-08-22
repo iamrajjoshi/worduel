@@ -8,20 +8,20 @@ The plan ensures that foundational components are solid before building dependen
 
 ## Tasks
 
-- [ ] 1. Initialize Go project structure and dependencies
+- [x] 1. Initialize Go project structure and dependencies
   - Create `backend/main.go`, `backend/go.mod`, and internal package directories
   - Add gorilla/websocket, gorilla/mux, and rs/cors dependencies
   - Set up basic application entry point with configuration loading
   - _Requirements: All (foundation)_
 
-- [ ] 2. Create core data models and types
+- [x] 2. Create core data models and types
   - File: `backend/internal/game/types.go`
   - Define GameState, Player, Guess, LetterResult, Room, and Message structs
   - Include JSON tags and proper threading primitives (sync.RWMutex)
   - Add enum types for GameStatus, PlayerStatus, and MessageType
   - _Requirements: 1.1, 5.1, 5.2_
 
-- [ ] 3. Implement dictionary service with embedded word lists
+- [x] 3. Implement dictionary service with embedded word lists
   - Files: `backend/internal/game/dictionary.go`, `backend/assets/words/*.txt`
   - Create Dictionary struct with word validation and random selection methods
   - Embed word list files (common.txt, valid.txt) using go:embed
