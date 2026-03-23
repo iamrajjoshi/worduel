@@ -107,17 +107,13 @@ func (mh *MessageHandler) handleJoinMessage(client *Client, message *game.Messag
 	mh.hub.roomClients[roomID][client.GetID()] = client
 	mh.hub.mutex.Unlock()
 
-	// Check if we should start the game (2 players joined)
+	// Read room state
 	gameRoom.RLock()
 	playerCount := len(gameRoom.Players)
 	gameStatus := gameRoom.GameState.Status
 	gameRoom.RUnlock()
 
-	if playerCount >= 2 && gameStatus == game.GameStatusWaiting {
-		mh.startNewGame(gameRoom)
-	}
-
-	// Send join success response with current game state
+	// Send join success response FIRST (before game_started)
 	response := &game.Message{
 		Type:      "join_success",
 		PlayerID:  client.GetID(),
@@ -137,13 +133,18 @@ func (mh *MessageHandler) handleJoinMessage(client *Client, message *game.Messag
 		RoomID:    roomID,
 		Timestamp: time.Now(),
 		Data: map[string]interface{}{
-			"event":       "player_joined",
-			"player_id":   client.GetID(),
-			"player_name": playerName,
+			"event":        "player_joined",
+			"player_id":    client.GetID(),
+			"player_name":  playerName,
 			"player_count": playerCount,
 		},
 	}
 	mh.broadcastToRoom(roomID, playerJoinedMessage, client.GetID())
+
+	// Start game AFTER join messages are sent
+	if playerCount >= 2 && gameStatus == game.GameStatusWaiting {
+		mh.startNewGame(gameRoom)
+	}
 
 	logger.Info("Player joined room",
 		"event_type", "player_joined",

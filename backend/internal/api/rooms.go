@@ -83,8 +83,8 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate max players (reasonable limit)
-	if req.MaxPlayers > 4 {
-		h.sendError(w, http.StatusBadRequest, "INVALID_MAX_PLAYERS", "Maximum 4 players allowed")
+	if req.MaxPlayers > 8 {
+		h.sendError(w, http.StatusBadRequest, "INVALID_MAX_PLAYERS", "Maximum 8 players allowed")
 		return
 	}
 

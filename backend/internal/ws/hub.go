@@ -132,28 +132,27 @@ func (h *Hub) handleClientRegister(client *Client) {
 
 // handleClientUnregister handles client unregistration
 func (h *Hub) handleClientUnregister(client *Client) {
-	h.mutex.Lock()
-	defer h.mutex.Unlock()
-
 	clientID := client.GetID()
 	roomID := client.GetRoomID()
+	playerID := client.GetPlayerID()
 
+	h.mutex.Lock()
 	// Remove from clients map
 	if _, exists := h.clients[clientID]; exists {
 		delete(h.clients, clientID)
-		hubLogger.Info("Client disconnected", 
-			"client_id", clientID, 
+		hubLogger.Info("Client disconnected",
+			"client_id", clientID,
 			"total_clients", len(h.clients))
 	}
-
 	// Remove from room if associated
 	if roomID != "" {
 		h.removeClientFromRoom(client, roomID)
+	}
+	h.mutex.Unlock()
 
-		// Handle player disconnection in room
-		if client.GetPlayerID() != "" {
-			h.handlePlayerDisconnection(client)
-		}
+	// Handle player disconnection (broadcasts to room, needs mutex unlocked)
+	if roomID != "" && playerID != "" {
+		h.handlePlayerDisconnection(client)
 	}
 
 	// Notify security middleware about disconnection

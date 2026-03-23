@@ -208,7 +208,7 @@ func (client *E2EGameClient) WaitForMessage(expectedType string, timeout time.Du
 func (client *E2EGameClient) CreateRoom(name string) (string, error) {
 	payload := map[string]interface{}{
 		"name":        name,
-		"max_players": 2,
+		"maxPlayers": 2,
 	}
 	
 	data, err := json.Marshal(payload)
@@ -273,7 +273,7 @@ func (client *E2EGameClient) MakeGuess(word string) error {
 func (client *E2EGameClient) CreateRoomWithOptions(name string, maxPlayers int) (string, error) {
 	payload := map[string]interface{}{
 		"name":        name,
-		"max_players": maxPlayers,
+		"maxPlayers": maxPlayers,
 	}
 	
 	data, err := json.Marshal(payload)
@@ -420,7 +420,7 @@ func TestCompleteUserJourney(t *testing.T) {
 	
 	// Step 6: Players make guesses
 	t.Log("Step 6: Making guesses...")
-	testWords := []string{"apple", "bread", "chair", "dream", "eagle"}
+	testWords := []string{"apple", "bread", "chair", "dream", "house"}
 	
 	for i, word := range testWords {
 		t.Logf("Round %d: Player 1 guessing '%s'", i+1, word)
@@ -520,7 +520,7 @@ func TestMultiPlayerCompetitiveScenarios(t *testing.T) {
 		
 		go func() {
 			defer wg.Done()
-			words := []string{"quick", "rapid", "swift", "fleet", "brisk"}
+			words := []string{"quick", "rapid", "about", "fleet", "above"}
 			for _, word := range words {
 				player1.MakeGuess(word)
 				time.Sleep(10 * time.Millisecond)
@@ -529,7 +529,7 @@ func TestMultiPlayerCompetitiveScenarios(t *testing.T) {
 		
 		go func() {
 			defer wg.Done()
-			words := []string{"speed", "haste", "hurry", "rush", "dash"}
+			words := []string{"speed", "adult", "after", "alarm", "album"}
 			for _, word := range words {
 				player2.MakeGuess(word)
 				time.Sleep(15 * time.Millisecond)
@@ -828,9 +828,9 @@ func TestEdgeCasesAndBoundaryConditions(t *testing.T) {
 		// Should receive error message for room full
 		msg, err := client3.WaitForMessage(string(game.MessageTypeError), 2*time.Second)
 		if err == nil {
-			errorData, ok := msg.Data.(*game.ErrorData)
-			require.True(t, ok)
-			assert.Contains(t, errorData.Code, "ROOM_FULL")
+			errorData, ok := msg.Data.(map[string]interface{})
+			require.True(t, ok, "error data should be a map")
+			assert.Equal(t, "ROOM_FULL", errorData["code"])
 			t.Log("Room capacity limit enforced correctly")
 		} else {
 			t.Log("Note: Room capacity enforcement may work differently")
