@@ -56,6 +56,8 @@ func NewAPIMiddleware(allowedOrigins []string) *APIMiddleware {
 		originMap["http://127.0.0.1:3000"] = true
 		originMap["https://localhost:3000"] = true
 		originMap["https://127.0.0.1:3000"] = true
+		originMap["http://localhost:8080"] = true
+		originMap["http://127.0.0.1:8080"] = true
 	}
 	
 	am := &APIMiddleware{
@@ -104,7 +106,7 @@ func (am *APIMiddleware) SecurityHeadersMiddleware(next http.Handler) http.Handl
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:")
 		
 		// Server identification
 		w.Header().Set("Server", "Worduel-Backend")

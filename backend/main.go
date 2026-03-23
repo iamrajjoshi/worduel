@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -183,6 +185,14 @@ func (app *Application) setupServer() error {
 	wsHandler := ws.NewHandler(app.hub, app.roomManager, app.dictionary)
 	router.HandleFunc("/ws", wsHandler.HandleWebSocket)
 
+	// Serve frontend static files (SPA fallback)
+	frontendDir := "./frontend/dist"
+	if _, err := os.Stat(frontendDir); err == nil {
+		spa := &spaHandler{staticPath: frontendDir, indexPath: "index.html"}
+		router.PathPrefix("/").Handler(spa)
+		app.logger.Info("Serving frontend from", "path", frontendDir)
+	}
+
 	// Apply middleware to all routes
 	handler := apiMiddleware.ApplyMiddlewares(router)
 
@@ -253,6 +263,34 @@ func (app *Application) waitForShutdownSignal(serverErrChan chan error) error {
 		app.logger.Info("Received shutdown signal", "signal", sig)
 		return app.gracefulShutdown()
 	}
+}
+
+// spaHandler serves static files and falls back to index.html for client-side routing
+type spaHandler struct {
+	staticPath string
+	indexPath  string
+}
+
+func (h *spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	path := filepath.Join(h.staticPath, filepath.Clean(r.URL.Path))
+
+	// Check if the requested file exists
+	fi, err := os.Stat(path)
+	if os.IsNotExist(err) || fi.IsDir() {
+		// SPA fallback: serve index.html for client-side routing
+		http.ServeFile(w, r, filepath.Join(h.staticPath, h.indexPath))
+		return
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Serve the static file with proper cache headers
+	if strings.HasSuffix(r.URL.Path, ".js") || strings.HasSuffix(r.URL.Path, ".css") {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	}
+	http.ServeFile(w, r, path)
 }
 
 func (app *Application) gracefulShutdown() error {

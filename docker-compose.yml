@@ -1,0 +1,16 @@
+services:
+  worduel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: debug
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      - PORT=8080
+      - HOST=0.0.0.0
+      - ALLOWED_ORIGINS=http://localhost:8080
+      - LOG_LEVEL=info
+      - VALIDATE_ORIGIN=false
+      - SENTRY_DSN=
+    restart: unless-stopped

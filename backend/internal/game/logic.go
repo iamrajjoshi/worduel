@@ -32,6 +32,11 @@ func NewGameLogic(dictionary *Dictionary) *GameLogic {
 	}
 }
 
+// GetRandomTargetWord returns a random word from the dictionary for use as a game target
+func (gl *GameLogic) GetRandomTargetWord() string {
+	return gl.dictionary.GetRandomTarget()
+}
+
 // GuessResult represents the result of processing a guess
 type GuessResult struct {
 	Word      string         `json:"word"`

@@ -1,0 +1,15 @@
+.git
+.claude
+.spec-workflow
+.github
+
+# Frontend build artifacts (rebuilt in Docker)
+frontend/node_modules
+frontend/dist
+
+# Backend build artifacts
+backend/worduel-backend
+
+# Dev files
+*.md
+!backend/internal/game/assets/*.txt

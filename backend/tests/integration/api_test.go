@@ -482,7 +482,7 @@ func TestSecurityHeaders(t *testing.T) {
 		"X-Frame-Options":        "DENY",
 		"X-XSS-Protection":       "1; mode=block",
 		"Referrer-Policy":        "strict-origin-when-cross-origin",
-		"Content-Security-Policy": "default-src 'self'",
+		"Content-Security-Policy": "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:",
 		"Server":                 "Worduel-Backend",
 	}
 

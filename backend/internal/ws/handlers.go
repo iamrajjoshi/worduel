@@ -2,7 +2,6 @@ package ws
 
 import (
 	"encoding/json"
-	"math/rand"
 	"time"
 
 	"worduel-backend/internal/game"
@@ -337,10 +336,7 @@ func (mh *MessageHandler) handleChatMessage(client *Client, message *game.Messag
 
 // startNewGame initializes a new game when enough players have joined
 func (mh *MessageHandler) startNewGame(room *game.Room) {
-	// TODO: Get target word from dictionary service
-	// For now, use a simple list of words
-	words := []string{"apple", "bread", "chair", "dream", "eagle", "flame", "grape", "house", "image", "juice"}
-	targetWord := words[rand.Intn(len(words))]
+	targetWord := mh.gameLogic.GetRandomTargetWord()
 
 	if err := mh.gameLogic.StartGame(room, targetWord); err != nil {
 		logger.Error("Failed to start game", "error", err.Error(), "room_id", room.ID)
@@ -414,14 +410,19 @@ func (mh *MessageHandler) handleGameCompletion(room *game.Room, winner string) {
 	roomID := room.ID
 	room.RUnlock()
 
+	room.RLock()
+	targetWord := room.GameState.Word
+	room.RUnlock()
+
 	gameCompletionMessage := &game.Message{
 		Type:      "game_completed",
 		RoomID:    roomID,
 		Timestamp: time.Now(),
 		Data: map[string]interface{}{
-			"winner":        winner,
-			"game_status":   string(game.GameStatusFinished),
-			"completed_at":  time.Now(),
+			"winner":       winner,
+			"game_status":  string(game.GameStatusFinished),
+			"completed_at": time.Now(),
+			"target_word":  targetWord,
 		},
 	}
 

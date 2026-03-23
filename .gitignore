@@ -125,6 +125,12 @@ tmp/
 config.local.json
 secrets.json
 
+# Backend binary
+backend/worduel-backend
+
+# Frontend
+frontend/dist/
+frontend/node_modules/
+
 # Docker
-.dockerignore
 docker-compose.override.yml
