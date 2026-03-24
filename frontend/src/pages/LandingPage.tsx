@@ -4,11 +4,13 @@ import { createRoom } from '../utils/api'
 
 const TITLE_LETTERS = ['W', 'O', 'R', 'D', 'U', 'E', 'L']
 const TITLE_COLORS = ['#538d4e', '#b59f3b', '#538d4e', '#3a3a3c', '#b59f3b', '#538d4e', '#3a3a3c']
+const PLAYER_COUNTS = [2, 3, 4, 5, 6, 7, 8] as const
 
 export function LandingPage() {
   const navigate = useNavigate()
   const [name, setName] = useState(() => localStorage.getItem('worduel_name') || '')
   const [joinCode, setJoinCode] = useState('')
+  const [maxPlayers, setMaxPlayers] = useState(2)
   const [error, setError] = useState('')
   const [creating, setCreating] = useState(false)
 
@@ -21,7 +23,7 @@ export function LandingPage() {
     setError('')
     try {
       localStorage.setItem('worduel_name', name.trim())
-      const room = await createRoom()
+      const room = await createRoom(maxPlayers)
       navigate(`/room/${room.roomCode}`)
     } catch {
       setError('Failed to create room. Is the server running?')
@@ -72,6 +74,27 @@ export function LandingPage() {
         />
       </div>
 
+      {/* Player count selector */}
+      <div className="w-full max-w-xs mb-4">
+        <p className="text-gray-400 text-xs text-center mb-2">Players</p>
+        <div className="flex gap-1 justify-center">
+          {PLAYER_COUNTS.map((count) => (
+            <button
+              key={count}
+              onClick={() => setMaxPlayers(count)}
+              className="w-9 h-9 rounded font-bold text-sm cursor-pointer transition-colors"
+              style={{
+                backgroundColor: maxPlayers === count ? '#538d4e' : '#1a1a1b',
+                color: maxPlayers === count ? '#fff' : '#818384',
+                border: `2px solid ${maxPlayers === count ? '#538d4e' : '#3a3a3c'}`,
+              }}
+            >
+              {count}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Actions */}
       <div className="flex flex-col gap-4 w-full max-w-xs">
         <button
@@ -79,7 +102,7 @@ export function LandingPage() {
           disabled={creating}
           className="w-full bg-[#538d4e] hover:bg-[#6aaf5e] disabled:opacity-50 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors cursor-pointer"
         >
-          {creating ? 'Creating...' : 'Create Game'}
+          {creating ? 'Creating...' : `Create Game (${maxPlayers} players)`}
         </button>
 
         <div className="flex items-center gap-3">

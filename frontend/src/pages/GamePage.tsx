@@ -12,11 +12,9 @@ export function GamePage() {
   const { roomCode } = useParams<{ roomCode: string }>()
   const navigate = useNavigate()
 
-  // If no name in localStorage, redirect to landing
   const playerName = localStorage.getItem('worduel_name')
   const game = useGame({ roomCode })
 
-  // Physical keyboard
   useKeyboard({
     onLetter: game.addLetter,
     onEnter: game.submitGuess,
@@ -24,12 +22,10 @@ export function GamePage() {
     enabled: game.gameStatus === 'active',
   })
 
-  // Redirect to landing if no name
   if (!playerName) {
     return <Navigate to="/" replace />
   }
 
-  // Navigate to results when game finishes
   if (game.gameStatus === 'finished' && game.targetWord) {
     return (
       <Navigate
@@ -47,8 +43,7 @@ export function GamePage() {
     )
   }
 
-  // Find opponent
-  const opponent = Object.values(game.players).find((p) => p.id !== game.clientId) ?? null
+  const opponents = Object.values(game.players).filter((p) => p.id !== game.clientId)
   const playerCount = Object.keys(game.players).length
 
   return (
@@ -77,13 +72,19 @@ export function GamePage() {
             roomCode={roomCode || ''}
             playerName={playerName}
             playerCount={playerCount}
+            maxPlayers={game.maxGuesses === 6 ? Math.max(playerCount, 2) : 2}
+            players={game.players}
           />
         ) : (
-          <div className="flex items-start gap-8 py-4">
-            {/* Opponent sidebar (left) */}
-            <div className="hidden sm:block w-24">
-              <OpponentProgress opponent={opponent} />
-            </div>
+          <div className="flex items-start gap-6 py-4">
+            {/* Opponents sidebar (left) */}
+            {opponents.length > 0 && (
+              <div className="hidden sm:flex flex-col gap-4 w-28">
+                {opponents.map((opp) => (
+                  <OpponentProgress key={opp.id} opponent={opp} />
+                ))}
+              </div>
+            )}
 
             {/* Game board (center) */}
             <div className="flex flex-col items-center gap-6">
@@ -100,15 +101,20 @@ export function GamePage() {
               />
             </div>
 
-            {/* Spacer for symmetry on desktop */}
-            <div className="hidden sm:block w-24" />
+            {/* Spacer for symmetry when opponents are shown */}
+            {opponents.length > 0 && <div className="hidden sm:block w-28" />}
           </div>
         )}
 
-        {/* Mobile opponent indicator */}
-        {game.gameStatus === 'active' && opponent && (
-          <div className="sm:hidden fixed bottom-2 right-2">
-            <OpponentProgress opponent={opponent} />
+        {/* Mobile opponents */}
+        {game.gameStatus === 'active' && opponents.length > 0 && (
+          <div className="sm:hidden fixed bottom-2 right-2 flex flex-col gap-2">
+            {opponents.slice(0, 3).map((opp) => (
+              <OpponentProgress key={opp.id} opponent={opp} />
+            ))}
+            {opponents.length > 3 && (
+              <p className="text-gray-500 text-xs text-center">+{opponents.length - 3} more</p>
+            )}
           </div>
         )}
       </div>
